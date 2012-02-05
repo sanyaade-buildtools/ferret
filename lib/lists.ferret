@@ -1,0 +1,136 @@
+;; lists.ferret
+;;
+
+;; create a list from a single item
+list: fn [x] [x , []]
+
+;; create a list with an element repeated n times
+replicate: fn [n x] [
+  for _ acc n [] [x , acc]
+]
+
+;; apply a block n times and collect the results
+collect: fn [n block] [
+  for _ acc n [] [(do block) , acc]
+]
+
+;; generate a list of numbers from [1..n]
+iota: fn [n] [
+  for i acc n [] [(n - i) , acc]
+]
+
+;; find the last element of a list
+last: fn [xs] [
+  foreach x _ xs none [x]
+]
+
+;; true if all elements of xs match a predicate
+all: fn [pred xs] [
+  foreach x acc xs true [
+    if pred x [true] [return false]
+  ]
+]
+
+;; true if any element of xs matches a predicate
+any: fn [pred xs] [
+  foreach x acc xs false [
+    if pred x [return true] [false]
+  ]
+]
+
+;; return the first element of a list to match a predicate
+find: fn [pred xs] [
+  foreach x acc xs none [
+    if pred x [return x] [none]
+  ]
+]
+
+;; return true if any element of a list is x
+elem: fn [x xs] [
+  any fn [i] [x = i] xs
+]
+
+;; apply a function to every element of a list
+iter: fn [f xs] [
+  foreach x _ xs none [f x]
+]
+
+;; aggregate a list from left -> right
+foldl: fn [f acc xs] [
+  foreach x a xs acc [f acc x]
+]
+
+;; aggregate a list from right -> left
+foldr: fn [f acc xs] [
+  if null xs [acc] [f (foldr :f acc tail xs) head xs]
+]
+
+;; map a function across a list
+map: fn [f xs] [
+  foldr fn [acc x] [(f x) , acc] [] xs
+]
+
+;; delete elements from a list that do not match a predicate
+filter: fn [pred xs] [
+  foldr fn [acc xs] [if pred x [x , acc] [acc]] [] xs
+]
+
+;; remove elements from a list that match a predicate
+remove-if: fn [pred xs] [
+  filter fn [x] [not pred x] xs
+]
+
+;; remove exact copies of an element
+remove: fn [x xs] [
+  remove-if (is x) xs
+]
+
+;; count how many times a predicate is matched
+count-if: fn [pred xs] [
+  foreach x n xs 0 [if pred x [n + 1] [n]]
+]
+
+;; count how many times a specific element appears
+count: fn [x xs] [
+  count-if (is x) xs
+]
+
+;; zip the elements of two lists with a function
+zip-with: fn [f xs ys] [
+  if (null xs) `or` (null ys) [[]] [
+    (f head xs head ys) , (zip-with :f tail xs tail ys)
+  ]
+]
+
+;; zip elements of two lists with the pair function
+zip: fn [xs ys] [
+  zip-with :@ xs ys
+]
+
+;; combine all the elements of two lists
+combine-with: fn [f xs ys] [
+  foldr fn [ay y] [foldr fn [ax x] [(f x y) , ax] ay xs] [] ys
+]
+
+;; combine elements of two lists with the pair function
+combine: fn [xs ys] [
+  combine-with :@ xs ys
+]
+
+;; the inverse of zip
+split: fn [xs] [
+  foldr fn [a x] [((fst x) , (fst a)) @ ((snd x) , (snd a))] [] @ [] xs
+]
+
+;; take the first n items from a list
+take: fn [n xs] [
+  if (n < 1) `or` (null xs) [[]] [(head xs) , (take n - 1 tail xs)]
+]
+
+;; keep taking elements while a predicate is true
+take-while: fn [pred xs] [
+  if (not pred head xs) `or` (null xs) [[]] [
+    (head xs) , (take-while :pred tail xs)
+  ]
+]
+

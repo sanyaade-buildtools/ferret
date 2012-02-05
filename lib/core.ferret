@@ -1,0 +1,66 @@
+;; core.ferret
+;;
+
+;; identity function
+id: fn [x] [x]
+
+;; constant function
+const: fn [x] [fn [_] [x]]
+
+;; the ignore function
+ignore: const none
+
+;; equality function
+is: fn [x] [fn [i] [i = x]]
+
+;; generic predicate
+type?: fn [t] [fn [x] [t = type x]]
+
+;; type predicates
+none?: type? 'none!
+quote?: type? 'quote!
+word?: type? 'word!
+proc?: type? 'proc!
+num?: type? 'num!
+string?: type? 'string!
+char?: type? 'char!
+boolean?: type? 'boolean!
+block?: type? 'block!
+paren?: type? 'paren!
+pid?: type? 'pid!
+port?: type? 'port!
+socket?: type? 'socket!
+
+;; create a simple function with no arguments
+does: fn [block] [fn [] block]
+
+;; conditional apply on true
+when: fn [test block] [
+  if test [do block] [none]
+]
+
+;; conditional apply on false
+unless: fn [test block] [
+  if test [none] [do block]
+]
+
+;; execute a block n times
+times: fn [n block] [
+  for fn [_ _] [do block] none n
+]
+
+;; profile a block of code
+time: fn [block] [
+  with [now x] [
+    now: clock
+    x: do block
+    print "Time:" && (form clock - now) & "s"
+    x
+  ]
+]
+
+;; print a value to stdout
+print: fn [x] [
+  write-line stdout form x
+]
+
