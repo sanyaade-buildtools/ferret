@@ -31,7 +31,7 @@ let rec repl st =
       with 
           Sys.Break -> Printf.printf "\n%sInterrupt!%s\n" red clear
         | End_of_file -> raise End_of_file
-        | e -> Printf.printf "%s%s%s\n" red (Printexc.to_string e) clear;
+        | e -> Printf.printf "%s** %s%s\n" red (Printexc.to_string e) clear;
     done
   with End_of_file -> ()
 
@@ -39,6 +39,8 @@ let rec repl st =
 let load_ext_libs st =
   List.iter (import st) [ "lib/core.ferret"
                         ; "lib/lists.ferret"
+                        ; "lib/math.ferret"
+                        ; "lib/io.ferret"
                         ]
 
 (* display the message of the day *)

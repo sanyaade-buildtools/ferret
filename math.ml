@@ -11,8 +11,8 @@ open Interp
 
 (* binary operation on two values *)
 let prim_op f st xs =
-  let (lval,xs') = pop1 xs in
-  let (rval,xs') = pop1 xs' in
+  let (lval,xs') = reduce1 st xs in
+  let (rval,xs') = reduce1 st xs' in
   f lval rval,xs'
 
 (* binary comparison on two cells *)

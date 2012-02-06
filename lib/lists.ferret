@@ -2,7 +2,7 @@
 ;;
 
 ;; create a list from a single item
-list: fn [x] [x , []]
+list: fn [x] [reduce [x]]
 
 ;; create a list with an element repeated n times
 replicate: fn [n x] [
@@ -62,7 +62,12 @@ foldl: fn [f acc xs] [
 
 ;; aggregate a list from right -> left
 foldr: fn [f acc xs] [
-  if null xs [acc] [f (foldr :f acc tail xs) head xs]
+  if null? xs [acc] [f (foldr :f acc tail xs) head xs]
+]
+
+;; append ys to xs, returning a new list
+append: fn [xs ys] [
+  foldr fn [acc x] [x , acc] ys xs
 ]
 
 ;; map a function across a list
@@ -72,7 +77,7 @@ map: fn [f xs] [
 
 ;; delete elements from a list that do not match a predicate
 filter: fn [pred xs] [
-  foldr fn [acc xs] [if pred x [x , acc] [acc]] [] xs
+  foldr fn [acc x] [if pred x [x , acc] [acc]] [] xs
 ]
 
 ;; remove elements from a list that match a predicate
@@ -97,7 +102,7 @@ count: fn [x xs] [
 
 ;; zip the elements of two lists with a function
 zip-with: fn [f xs ys] [
-  if (null xs) `or` (null ys) [[]] [
+  if (null? xs) `or` (null? ys) [[]] [
     (f head xs head ys) , (zip-with :f tail xs tail ys)
   ]
 ]
@@ -105,6 +110,11 @@ zip-with: fn [f xs ys] [
 ;; zip elements of two lists with the pair function
 zip: fn [xs ys] [
   zip-with :@ xs ys
+]
+
+;; the inverse of zip
+unzip: fn [xs] [
+  foldr fn [a x] [((fst x) , (fst a)) @ ((snd x) , (snd a))] [] @ [] xs
 ]
 
 ;; combine all the elements of two lists
@@ -117,20 +127,152 @@ combine: fn [xs ys] [
   combine-with :@ xs ys
 ]
 
-;; the inverse of zip
-split: fn [xs] [
-  foldr fn [a x] [((fst x) , (fst a)) @ ((snd x) , (snd a))] [] @ [] xs
-]
-
 ;; take the first n items from a list
 take: fn [n xs] [
-  if (n < 1) `or` (null xs) [[]] [(head xs) , (take n - 1 tail xs)]
+  if (n < 1) `or` (null? xs) [[]] [
+    (head xs) , (take n - 1 tail xs)
+  ]
 ]
 
 ;; keep taking elements while a predicate is true
 take-while: fn [pred xs] [
-  if (not pred head xs) `or` (null xs) [[]] [
+  if (not pred head xs) `or` (null? xs) [[]] [
     (head xs) , (take-while :pred tail xs)
   ]
 ]
 
+;; remove the first n items from a list
+drop: fn [n xs] [
+  if (n < 1) `or` (null? xs) [xs] [drop (n - 1) tail xs]
+]
+
+;; remove elements from a list while a predicate is true
+drop-while: fn [pred xs] [
+  if (not pred head xs) `or` (null? xs) [xs] [drop :pred tail xs]
+]
+
+;; partition a list at the first place a predicate fails
+split-when: fn [pred xs] [
+  if (null? xs) `or` (pred head xs) [[] @ xs] [
+    let [s: split-when :pred tail xs] [
+      ((head xs) , (fst s)) @ (snd s)
+    ]
+  ]
+]
+
+;; split a list at the given index
+split-at: fn [n xs] [
+  if (null? xs) `or` (n < 1) [[] @ xs] [
+    let [s: split-at (n - 1) (tail xs)] [
+        ((head xs) , (fst s)) @ (snd s)
+    ]
+  ]
+]
+
+;; remove the nth element from a list
+delete-at: fn [n xs] [
+  let [s: split-at n xs] [
+    if null? snd s [fst s] [append fst s tail snd s]
+  ]
+]
+
+;; remove the first occurance of a true predicate from a lsit
+delete-if: fn [pred xs] [
+  let [s: split-when :pred xs] [
+    if null? snd s [fst s] [append fst s tail snd s]
+  ]
+]
+
+;; remove the first occurance of an element from a list
+delete: fn [x xs] [
+  delete-if (is x) xs
+]
+
+;; remove all duplicates from a list
+nub: fn [xs] [
+  if null? xs [[]] [
+    let [x: head xs] [x , nub remove x tail xs]
+  ]
+]
+
+;; remove elements from xs that occur in ys
+difference: fn [xs ys] [
+  foldl fn [acc x] [delete x acc] xs ys
+]
+
+;; keep elements of xs that occur in ys
+intersect: fn [xs ys] [
+  filter fn [x] [elem x ys] xs
+]
+
+;; create a union set of xs and ys
+union: fn [xs ys] [
+  nub append xs ys
+]
+
+;; return a list of cons counting duplicates
+duplicates: fn [xs] [
+  if null? xs [[]] [
+    ;(let* ((x $ car xs)
+    ;       (s $ partition (fn (i) (= i x)) xs))
+    ;  (cons (cons x (length (car s))) $ duplicates $ cdr s))))
+  ]
+]
+
+;; find the best fit in a list
+select: fn [f xs] [
+  if null? xs [none] [foldl :f head xs tail xs]
+]
+
+;; partition a list into two lists by predicate
+partition: fn [pred xs] [
+  ;(let ((sel (fn (x p)
+  ;             (if (pred x)
+  ;                 (cons (cons x (car p)) (cdr p))
+  ;               (cons (car p) $ cons x $ cdr p)))))
+  ;  (foldr (fn (acc x) (sel x acc)) (cons nil nil) xs)))
+]
+
+;; merge two (sorted) lists together
+merge-with: fn [f xs ys] [
+  if null? xs [ys] [
+    if null? ys [xs] [
+      let [x: head xs y: head ys] [
+        if f x y [
+          x , merge-with :f tail xs ys
+        ] [
+          y , merge-with :f xs tail ys
+        ]
+      ]
+    ]
+  ]
+]
+
+;; merge two lists in ascending order
+merge: fn [xs ys] [
+  merge-with :< xs ys
+]
+
+;; sort a list of elements
+;(defn sort-with (f xs)
+;  (foldl (fn (acc ys) (merge-with f acc ys)) nil (map list xs)))
+
+;; sort a list in ascending order
+;(defn sort (xs) 
+;  (sort-with < xs))
+
+;; inserts an element into a list sorted
+insert-with: fn [f x xs] [
+  let [s: split-when fn [i] [f x i] xs] [
+    append fst s (x , snd s)
+  ]
+]
+
+;; iinsert an element into a list in ascending order
+insert: fn [x xs] [
+  insert-with :< x xs
+]
+
+;; randomize the elements of a list
+;(defn randomize (xs)
+;  (map cdr $ sort $ map (fn (x) (cons (uniform) x)) xs))

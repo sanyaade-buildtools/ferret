@@ -6,6 +6,7 @@
  * types.ml
  *)
 
+(* fundamental cell *)
 type t =
     Undef
   | Quote of t
@@ -19,6 +20,7 @@ type t =
   | Expr of t list
   | Port_in of in_channel * string
   | Port_out of out_channel * string
+  | Obj of context
 
 (* numeric values *)
 and num =
@@ -36,6 +38,9 @@ and local_env = (int * t ref) list
 
 (* primitive function *)
 and native = st -> t list -> t * t list
+
+(* object context *)
+and context = (t Atom.AtomMap.t) ref
 
 (* thread state *)
 and st =
@@ -62,6 +67,7 @@ exception Not_a_char of t
 exception Not_a_float of t
 exception Not_a_int of t
 exception Not_a_number of t
+exception Not_a_obj of t
 exception Not_a_pair of t
 exception Not_a_port of t
 exception Not_a_proc of t
@@ -71,6 +77,9 @@ exception Not_a_var of t
 exception Not_a_word of t
 exception Uncomparable_type
 
+(* bootstrapped values *)
+let obj = Obj (ref Atom.AtomMap.empty)
+
 (* create a new coroutine process *)
 let new_process () =
   { mailbox=Queue.create ()
@@ -79,6 +88,7 @@ let new_process () =
 
 (* create a new thread state *)
 let new_thread env =
+  Hashtbl.replace env (Atom.intern "object").Atom.i obj;
   { env=env
   ; locals=[]
   ; pinfo=new_process ()
@@ -98,20 +108,38 @@ let rec mold = function
   | Word (Word.Getter s) -> ":" ^ s.Atom.name
   | Word (Word.Var s) -> s.Atom.name ^ ":"
   | Proc (Closure (_,ps,xs)) -> mold_fn ps xs
-  | Proc (Prim (p,_)) -> p.Atom.name
+  | Proc (Prim (_,_)) -> "native"
   | Bool false -> "false"
   | Bool true -> "true"
   | Char c -> "#\"" ^ (Char.escaped c) ^ "\""
   | Str s -> "\"" ^ (String.escaped s) ^ "\""
   | Num (Int i) -> string_of_int i
   | Num (Float f) -> string_of_float f
-  | Block xs -> "[" ^ (mold_list xs) ^ "]"
-  | Expr xs -> "(" ^ (mold_list xs) ^ ")"
+  | Block xs -> Printf.sprintf "[%s]" (mold_list xs)
+  | Expr xs -> Printf.sprintf "(%s)" (mold_list xs)
   | Port_in (_,s) -> mold_unreadable_obj "port in" s
   | Port_out (_,s) -> mold_unreadable_obj "port out" s
+  | Obj context -> mold_context context
 
 (* convert a list of cells to a string *)
 and mold_list xs = String.concat " " (List.map mold xs)
+
+(* convert an object context to a string *)
+and mold_context obj =
+  let buf = Buffer.create 40 in
+  let dump k x =
+    Buffer.add_string buf (k.Atom.name);
+    Buffer.add_string buf (": ");
+    Buffer.add_string buf (mold x);
+    Buffer.add_char buf ' '
+  in
+  if Atom.AtomMap.is_empty !obj
+  then "object"
+  else
+    begin
+      Atom.AtomMap.iter dump !obj;
+      Printf.sprintf "make object [%s\b]" (Buffer.contents buf)
+    end
 
 (* convert a closure to a string *)
 and mold_fn ps xs = 
@@ -173,6 +201,11 @@ let num_of_cell = function
   | Num x -> x
   | x -> raise (Not_a_number x)
 
+(* object context coercion *)
+let obj_of_cell = function
+  | Obj x -> x
+  | x -> raise (Not_a_obj x)
+
 (* option coercion *)
 let option_of_cell = function
   | Undef -> None
@@ -219,6 +252,7 @@ let rec compare_cell = function
   | Port_out (_,_) -> raise Uncomparable_type
   | Proc a -> raise Uncomparable_type
   | Quote a -> fun b -> compare_cell a b
+  | Obj a -> fun b -> compare_obj a (obj_of_cell b)
   | Str a -> fun b -> compare a (string_of_cell b)
   | Word a -> fun b -> Atom.compare (Word.atom a) (atom_of_cell b)
   | Undef -> function
@@ -235,6 +269,12 @@ and compare_list a b =
       match compare_cell x y with
           0 -> compare_list xs ys
         | x -> x
+
+(* compare two objects *)
+and compare_obj a b =
+  if a == b
+  then 0
+  else 1
 
 (* compare numerics *)
 and compare_num a b =

@@ -17,13 +17,20 @@ let prim_fn st xs =
   let (block,xs') = coerce list_of_cell (reduce1 st xs') in
   Proc (Closure (st.locals,List.map sym_of_cell args,block)),xs'
 
-(* create a temporary lexical scope *)
-let prim_with st xs =
+(* create a new lexical scope *)
+let prim_let st xs =
   let (vars,xs') = coerce list_of_cell (reduce1 st xs) in
   let (block,xs') = coerce list_of_cell (reduce1 st xs') in
-  let bind env p = ((sym_of_cell p).Atom.i,ref Undef)::env in
-  let frame = List.fold_left bind st.locals vars in
-  interp { st with locals=frame } block,xs'
+  let rec bind env xs = 
+    if xs = []
+    then env
+    else begin
+      let (var,xs') = coerce var_of_cell (pop1 xs) in
+      let (x,xs') = reduce1 st xs' in
+      bind ((var.Atom.i,ref x)::env) xs'
+    end
+  in
+  interp { st with locals=bind st.locals vars } block,xs'
 
 (* return early from a function *)
 let prim_return st xs =
@@ -34,6 +41,41 @@ let prim_return st xs =
 let prim_fail st xs =
   let (x,_) = reduce1 st xs in
   raise (Fail x)
+
+(* clone a new prototype and bind values to it *)
+let prim_make st xs =
+  let (proto,xs') = coerce obj_of_cell (reduce1 st xs) in
+  let (vars,xs') = coerce list_of_cell (reduce1 st xs') in
+  let rec bind map xs =
+    if xs = []
+    then map
+    else begin
+      let (var,xs') = coerce var_of_cell (pop1 xs) in
+      let (x,xs') = reduce1 st xs' in
+      bind (Atom.AtomMap.add var x map) xs'
+    end
+  in
+  Obj (ref (bind !proto vars)),xs'
+
+(* extract an binding from an object *)
+let prim_get st xs =
+  let (obj,xs') = coerce obj_of_cell (reduce1 st xs) in
+  let (s,xs') = coerce sym_of_cell (reduce1 st xs') in
+  try
+    Atom.AtomMap.find s !obj,xs'
+  with Not_found -> Undef,xs'
+
+(* redefine a binding for an object *)
+let prim_set st xs =
+  let (obj,xs') = coerce obj_of_cell (reduce1 st xs) in
+  let (s,xs') = coerce sym_of_cell (reduce1 st xs') in
+  let (x,xs') = reduce1 st xs' in
+  begin
+    if x = Undef
+    then obj := Atom.AtomMap.remove s !obj
+    else obj := Atom.AtomMap.add s x !obj
+  end;
+  x,xs'
 
 (* conditional branch *)
 let prim_if st xs =

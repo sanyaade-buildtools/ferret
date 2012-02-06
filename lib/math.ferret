@@ -1,0 +1,25 @@
+;; math.ferret
+;;
+
+;; negative and positive predicates
+minus?: fn [n] [n < 0]
+plus?: fn [n] [n > 0]
+
+;; test for odd and even
+even?: fn [n] [zero? n `land` 1]
+odd?: fn[n] [plus? n `land` 1]
+
+;; increment and decrement functions
+inc: fn [n] [n + 1]
+dec: fn [n] [n - 1]
+
+;; min and max functions
+max: fn [a b] [if a >= b [a] [b]]
+min: fn [a b] [if a <= b [a] [b]]
+
+;; square a number
+sq: fn [n] [n * n]
+
+;; common list aggregation functions
+sum: fn [xs] [foldl :+ 0 xs]
+product: fn [xs] [foldl :* 1 xs]

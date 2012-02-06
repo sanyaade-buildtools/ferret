@@ -46,21 +46,13 @@ unless: fn [test block] [
 
 ;; execute a block n times
 times: fn [n block] [
-  for fn [_ _] [do block] none n
+  for i _ n none [do block]
 ]
 
 ;; profile a block of code
 time: fn [block] [
-  with [now x] [
-    now: clock
-    x: do block
+  let [now: clock] [
+    do block
     print "Time:" && (form clock - now) & "s"
-    x
   ]
 ]
-
-;; print a value to stdout
-print: fn [x] [
-  write-line stdout form x
-]
-
