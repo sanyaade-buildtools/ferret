@@ -10,13 +10,12 @@
 type t =
     Undef
   | Quote of t
+  | Block of t list
   | Word of Word.t
   | Proc of proc
   | Bool of bool
-  | Char of char
   | Str of string
   | Num of num
-  | Block of t list
   | Expr of t list
   | Port_in of in_channel * string
   | Port_out of out_channel * string
@@ -44,9 +43,10 @@ and context = (t Atom.AtomMap.t) ref
 
 (* thread state *)
 and st =
-    { env    : dynamic_env
-    ; locals : local_env
-    ; pinfo  : process_info
+    { env        : dynamic_env
+    ; stack      : local_env
+    ; pinfo      : process_info
+    ; reductions : int ref
     }
 
 (* coroutine process info *)
@@ -61,21 +61,25 @@ and process_result =
   | Terminated of exn
 
 (* type exceptions *)
-exception Not_a_block of t
+exception Not_a_array of t
 exception Not_a_boolean of t
-exception Not_a_char of t
 exception Not_a_float of t
 exception Not_a_int of t
+exception Not_a_list of t
 exception Not_a_number of t
 exception Not_a_obj of t
 exception Not_a_pair of t
 exception Not_a_port of t
 exception Not_a_proc of t
+exception Not_a_series of t
 exception Not_a_string of t
 exception Not_a_undef of t
 exception Not_a_var of t
 exception Not_a_word of t
+
+(* compare exceptions *)
 exception Uncomparable_type
+exception Compare_fail of int
 
 (* bootstrapped values *)
 let obj = Obj (ref Atom.AtomMap.empty)
@@ -90,13 +94,14 @@ let new_process () =
 let new_thread env =
   Hashtbl.replace env (Atom.intern "object").Atom.i obj;
   { env=env
-  ; locals=[]
+  ; stack=[]
   ; pinfo=new_process ()
+  ; reductions=ref 0
   }
 
 (* spawn a new coroutine off a process *)
 let spawn_thread st = 
-  { st with locals=[]; pinfo=new_process () }
+  { st with stack=[]; pinfo=new_process () }
 
 (* convert a cell to a readable string *)
 let rec mold = function
@@ -111,7 +116,6 @@ let rec mold = function
   | Proc (Prim (_,_)) -> "native"
   | Bool false -> "false"
   | Bool true -> "true"
-  | Char c -> "#\"" ^ (Char.escaped c) ^ "\""
   | Str s -> "\"" ^ (String.escaped s) ^ "\""
   | Num (Int i) -> string_of_int i
   | Num (Float f) -> string_of_float f
@@ -165,19 +169,13 @@ let atom_of_cell = function
 (* block coercion *)
 let list_of_cell = function
   | Block xs -> xs
-  | Expr xs -> xs
-  | x -> raise (Not_a_block x)
+  | x -> raise (Not_a_list x)
 
 (* boolean coercion *)
 let bool_of_cell = function
   | Undef -> false
   | Bool x -> x
   | x -> raise (Not_a_boolean x)
-
-(* character coercion *)
-let char_of_cell = function
-  | Char x -> x
-  | x -> raise (Not_a_char x)
 
 (* float coercion *)
 let float_of_cell = function
@@ -243,9 +241,8 @@ let sym_of_cell = function
 
 (* compare function *)
 let rec compare_cell = function
-  | Block a -> fun b -> compare_list a (list_of_cell b)
   | Bool a -> fun b -> compare a (bool_of_cell b)
-  | Char a -> fun b -> compare a (char_of_cell b)
+  | Block a -> fun b -> compare_list a (list_of_cell b)
   | Expr a -> fun b -> compare_list a (list_of_cell b)
   | Num a -> fun b -> compare_num a (num_of_cell b)
   | Port_in (_,_) -> raise Uncomparable_type
@@ -269,6 +266,21 @@ and compare_list a b =
       match compare_cell x y with
           0 -> compare_list xs ys
         | x -> x
+
+(* compare an array of cells *)
+and compare_array a b =
+  try
+    for i = 0 to Array.length a - 1 do
+      match compare_cell a.(i) b.(i) with
+          0 -> ()
+        | x -> raise (Compare_fail x)
+    done;
+    if Array.length b > Array.length a
+    then -1
+    else 0
+  with 
+      (Invalid_argument _) -> 1
+    | (Compare_fail x) -> x
 
 (* compare two objects *)
 and compare_obj a b =

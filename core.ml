@@ -9,13 +9,17 @@
 open Cell
 open Interp
 
+exception ArityMismatch of Cell.t list
 exception Fail of Cell.t
+
+(* return # of reductions performed by this thread *)
+let prim_reducs st xs = Num (Int !(st.reductions)),xs
 
 (* create a closure *)
 let prim_fn st xs =
   let (args,xs') = coerce list_of_cell (reduce1 st xs) in
   let (block,xs') = coerce list_of_cell (reduce1 st xs') in
-  Proc (Closure (st.locals,List.map sym_of_cell args,block)),xs'
+  Proc (Closure (st.stack,List.map sym_of_cell args,block)),xs'
 
 (* create a new lexical scope *)
 let prim_let st xs =
@@ -30,7 +34,7 @@ let prim_let st xs =
       bind ((var.Atom.i,ref x)::env) xs'
     end
   in
-  interp { st with locals=bind st.locals vars } block,xs'
+  interp { st with stack=bind st.stack vars } block,xs'
 
 (* return early from a function *)
 let prim_return st xs =
@@ -114,8 +118,9 @@ let prim_or st xs =
 let prim_apply st xs =
   let (f,xs') = coerce proc_of_cell (reduce1 st xs) in
   let (args,xs') = coerce list_of_cell (reduce1 st xs') in
-  let (x,_) = call st args f in
-  x,xs' 
+  match call st args f with
+      (x,[]) -> x,xs'
+    | (_,xs) -> raise (ArityMismatch xs)
 
 (* apply a block *)
 let prim_do st xs =
@@ -149,33 +154,29 @@ let prim_forever st xs =
 (* functional for loop iterator *)
 let prim_for st xs =
   let (i,xs') = coerce sym_of_cell (pop1 xs) in
-  let (a,xs') = coerce sym_of_cell (pop1 xs') in
   let (count,xs') = coerce int_of_cell (reduce1 st xs') in
-  let (initial,xs') = reduce1 st xs' in
   let (block,xs') = coerce list_of_cell (reduce1 st xs') in
   let i' = ref Undef in
-  let a' = ref initial in
-  let st' = { st with locals=(i.Atom.i,i')::(a.Atom.i,a')::st.locals } in 
+  let x' = ref Undef in
+  let st' = { st with stack=(i.Atom.i,i')::st.stack } in 
   for n = 0 to count - 1 do
     i' := Num (Int n);
-    a' := interp st' block
+    x' := interp st' block
   done;
-  !a',xs'
+  !x',xs'
 
 (* functional list iterator *)
 let prim_foreach st xs =
   let (i,xs') = coerce sym_of_cell (pop1 xs) in
-  let (a,xs') = coerce sym_of_cell (pop1 xs') in
   let (list,xs') = coerce list_of_cell (reduce1 st xs') in
-  let (initial,xs') = reduce1 st xs' in
   let (block,xs') = coerce list_of_cell (reduce1 st xs') in
   let i' = ref Undef in
-  let a' = ref initial in
-  let st' = { st with locals=(i.Atom.i,i')::(a.Atom.i,a')::st.locals } in 
+  let x' = ref Undef in
+  let st' = { st with stack=(i.Atom.i,i')::st.stack } in 
   let f x = 
     i' := x;
-    a' := interp st' block
+    x' := interp st' block
   in
   List.iter f list;
-  !a',xs'
+  !x',xs'
 

@@ -6,43 +6,43 @@ list: fn [x] [reduce [x]]
 
 ;; create a list with an element repeated n times
 replicate: fn [n x] [
-  for _ acc n [] [x , acc]
+  let [acc: []] [
+    for _ n [acc: x , acc] acc
+  ]
 ]
 
 ;; apply a block n times and collect the results
 collect: fn [n block] [
-  for _ acc n [] [(do block) , acc]
+  let [acc: []] [
+    for _ n [acc: (do block) , acc] acc
+  ]
 ]
 
 ;; generate a list of numbers from [1..n]
 iota: fn [n] [
-  for i acc n [] [(n - i) , acc]
+  let [acc: []] [
+    for i n [acc: (n - i) , acc] acc
+  ]
 ]
 
 ;; find the last element of a list
 last: fn [xs] [
-  foreach x _ xs none [x]
+  foreach x xs [x]
 ]
 
 ;; true if all elements of xs match a predicate
 all: fn [pred xs] [
-  foreach x acc xs true [
-    if pred x [true] [return false]
-  ]
+  foreach x xs [if not pred x [return false]] true
 ]
 
 ;; true if any element of xs matches a predicate
 any: fn [pred xs] [
-  foreach x acc xs false [
-    if pred x [return true] [false]
-  ]
+  foreach x xs [if pred x [return true]] false
 ]
 
 ;; return the first element of a list to match a predicate
 find: fn [pred xs] [
-  foreach x acc xs none [
-    if pred x [return x] [none]
-  ]
+  foreach x xs [if pred x [return x]] none
 ]
 
 ;; return true if any element of a list is x
@@ -52,12 +52,12 @@ elem: fn [x xs] [
 
 ;; apply a function to every element of a list
 iter: fn [f xs] [
-  foreach x _ xs none [f x]
+  foreach x xs [f x]
 ]
 
 ;; aggregate a list from left -> right
 foldl: fn [f acc xs] [
-  foreach x a xs acc [f acc x]
+  foreach x xs [acc: f acc x]
 ]
 
 ;; aggregate a list from right -> left
@@ -258,7 +258,7 @@ merge: fn [xs ys] [
 ;  (foldl (fn (acc ys) (merge-with f acc ys)) nil (map list xs)))
 
 ;; sort a list in ascending order
-;(defn sort (xs) 
+;(defn sort (xs)
 ;  (sort-with < xs))
 
 ;; inserts an element into a list sorted

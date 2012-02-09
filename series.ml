@@ -1,4 +1,4 @@
-(* ferret block prims
+(* ferret series prims
  *
  * copyright (c) 2012 by jeffrey massung
  * all rights reserved
@@ -32,7 +32,7 @@ let prim_tail st xs =
   let (block,xs') = coerce list_of_cell (reduce1 st xs) in
   match block with
       [] -> Undef,xs'
-    | _::xs -> (Block xs),xs'
+    | _::xs -> Block xs,xs'
 
 (* get the length of a block *)
 let prim_len st xs =

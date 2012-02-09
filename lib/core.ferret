@@ -46,7 +46,7 @@ unless: fn [test block] [
 
 ;; execute a block n times
 times: fn [n block] [
-  for i _ n none [do block]
+  for i n [do block]
 ]
 
 ;; profile a block of code

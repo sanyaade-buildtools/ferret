@@ -24,7 +24,7 @@ let lexer =
   { comment_start  = pzero
   ; comment_end    = pzero
   ; comment_line   = string ";"
-  ; ident_start    = alphanum <|> one_of op_chars <|> char '_'
+  ; ident_start    = letter <|> one_of op_chars <|> char '_'
   ; ident_letter   = alphanum <|> one_of op_chars <|> char '_'
   ; op_start       = pzero
   ; op_letter      = pzero
@@ -39,7 +39,7 @@ let rec token st =
                         ; block
                         ; expr
                         ; string
-                        ; character
+                        ; num
                         ; word
                         ]))
     st
@@ -72,10 +72,12 @@ and expr st = (parens lexer (many1 token) >>= fun  xs -> return (Expr xs)) st
 (* string literal *)
 and string st = (string_lit lexer >>= fun s -> return (Str s)) st
 
-(* character literal *)
-and character st =
-  let first s = try Char s.[0] with _ -> Char '\000' in
-  (char '#' >> string_lit lexer >>= fun s -> return (first s)) st
+(* numeric literal *)
+and num st = 
+  let real_or_nat x = not_followed_by lexer.ident_start >> return x in
+  let float = real >>= fun n -> return (Float n) in
+  let nat = natural >>= fun n -> return (Int n) in
+  ((float <|> nat) >>= real_or_nat >>= fun x -> return (Num x)) st
 
 (* parse a word *)
 and word st =
@@ -101,15 +103,11 @@ and symbol st =
       | None -> false
   in
   let word s =
-    try return (Num (Int (int_of_string s.name))) with _ ->
-      try return (Num (Float (float_of_string s.name))) with _ ->
-        if s.name.[0] = '.' || (s.name.[0] >= '0' && s.name.[0] <= '9')
-        then raise (Invalid_number s.name)
-        else choose [ char ':' >> return (Word (Var s))
-                    ; if is_op s.Atom.name
-                      then return (Word (Binary (Op,s)))
-                      else return (Word (Sym s))
-                    ]
+    choose [ char ':' >> return (Word (Var s))
+           ; if is_op s.Atom.name
+             then return (Word (Binary (Op,s)))
+             else return (Word (Sym s))
+           ]
   in
   (atom >>= word) st
 

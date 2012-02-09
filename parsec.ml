@@ -15,6 +15,9 @@ type parse_stream = { source : string
 (* current parser result and input stream *)
 type 'a parse_state = ('a * parse_stream) option
 
+(* parse failure *)
+exception Fail of parse_stream
+
 (* bind from one parse combinator to the next *)
 let (>>=) m f st =
   match m st with
@@ -34,12 +37,19 @@ let return x = function
 
 (* attempt to parse a source string with a parse combinator *)
 let parse s p =
-  match p (Some { source=s; pos=0; line=1 }) with
-      Some (x,st') -> Some (x,st')
-    | None -> None
+  try
+    match p (Some { source=s; pos=0; line=1 }) with
+        Some (x,st') -> Some (x,st')
+      | None -> None
+  with Fail st -> None
 
 (* force a parse to fail *)
 let pzero _ = None
+
+(* fails with an exception - no more parsing is done *)
+let fail = function
+  | Some st -> raise (Fail st)
+  | None -> None
 
 (* match any character except eof *)
 let any_char = function
@@ -174,6 +184,9 @@ and sep_end_by p sep = (sep_end_by1 p sep) <|> (return [])
 (* keep capturing p until term is found *)
 let rec many_till p term st =
   ((term >> return []) <|> (p >>= cons (many_till p term))) st
+
+(* make sure the next token isn't something specific *)
+let not_followed_by p = (p >> fail) <|> return ()
 
 (* common combinators *)
 let upper_letter = one_of "ABCDEFGHIJKLMNOPQRSTUVWXYZ"

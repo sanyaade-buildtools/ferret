@@ -11,6 +11,9 @@ open Parsec
 (* function that accepts a parser and returns a value *)
 type 'a parse_combinator = parse_stream option -> 'a parse_state
 
+(* when parsing numbers *)
+type number = Float of float | Int of int
+
 (* language lexer definition *)
 type lexer = { comment_start  : string parse_combinator
              ; comment_end    : string parse_combinator
@@ -94,35 +97,45 @@ let char_lit l =
 let string_lit l =
   lexeme l (char '"' >> (collect (many_till escaped_char (char '"'))))
 
+(* optional sign flag *)
+let sign = maybe (one_of "-+")
+
+(* int_of_string, skipping leading + if present *)
+let natural_of_string d =
+  if d.[0] = '+' 
+  then int_of_string (String.sub d 1 (String.length d -1))
+  else int_of_string d
+
+(* utility functions *)
+let integer p = capture (sign >> p) >>= fun d -> return (natural_of_string d) 
+let float p = capture (sign >> p) >>= fun d -> return (float_of_string d)
+
 (* parse an unsigned decimal number *)
-let decimal l =
-  lexeme l (capture digits >>= fun d -> return (int_of_string d))
+let decimal = integer digits
 
 (* parse an unsigned hex number *)
-let hex l =
-  lexeme l ((capture (string "0x" >> hex_digits)) >>=
-               fun d -> return (int_of_string d))
+let hex = integer (string "0x" >> hex_digits)
 
 (* parse a binary number *)
-let binary l =
-  lexeme l ((capture (string "0b" >> (many1 (one_of "01")))) >>=
-               fun d -> return (int_of_string d))
+let binary = integer (string "0b" >> many1 (one_of "01"))
 
 (* parse an octal number *)
-let octal l =
-  lexeme l ((capture (string "0o" >> (many1 (one_of "01234567")))) >>=
-               fun d -> return (int_of_string d))
+let octal = integer (string "0o" >> many1 (one_of "01234567"))
 
 (* parse an unsigned natural number *)
-let natural l =
-  (hex l) <|> (octal l) <|> (binary l) <|> (decimal l)
+let natural = choose [hex;octal;binary;decimal]
 
 (* parse a real number *)
-let real l =
+let real =
   let frac = char '.' >> many digit in
-  let exp = one_of "eE" >> maybe (one_of "-+") >> digits in
-  lexeme l ((capture (digits >> frac >> maybe exp)) >>=
-               fun d -> return (float_of_string d))
+  let exp = one_of "eE" >> sign >> digits in
+  float (digits >> frac >> maybe exp)
+
+(* parse a real or natural *)
+let real_or_natural l =
+  lexeme l (choose [ real >>= (fun f -> return (Float f))
+                   ; natural >>= (fun i -> return (Int i))
+                   ])
 
 (* parse combinator between two guarded combinators *)
 let guarded l gopen gclose p = 

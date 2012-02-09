@@ -6,6 +6,8 @@
  * prims.ml
  *)
 
+open Cell
+
 (* leave ferret *)
 let prim_bye st xs = exit 0
 
@@ -14,6 +16,7 @@ let prims =
   [ ("bye",prim_bye)
 
     (* core prims *)
+  ; ("reductions",Core.prim_reducs)
   ; ("fn",Core.prim_fn)
   ; ("let",Core.prim_let)
   ; ("return",Core.prim_return)
@@ -35,16 +38,16 @@ let prims =
   ; ("for",Core.prim_for)
   ; ("foreach",Core.prim_foreach)
 
-    (* block prims *)
-  ; (",",Block.prim_cons)
-  ; ("null?",Block.prim_null)
-  ; ("head",Block.prim_head)
-  ; ("tail",Block.prim_tail)
-  ; ("length",Block.prim_len)
-  ; ("reverse",Block.prim_rev)
-  ; ("@",Block.prim_pair)
-  ; ("fst",Block.prim_fst)
-  ; ("snd",Block.prim_snd)
+    (* series prims *)
+  ; (",",Series.prim_cons)
+  ; ("null?",Series.prim_null)
+  ; ("head",Series.prim_head)
+  ; ("tail",Series.prim_tail)
+  ; ("length",Series.prim_len)
+  ; ("reverse",Series.prim_rev)
+  ; ("@",Series.prim_pair)
+  ; ("fst",Series.prim_fst)
+  ; ("snd",Series.prim_snd)
 
     (* io prims *)
   ; ("stdout",Io.prim_stdout)
@@ -54,10 +57,8 @@ let prims =
   ; ("close",Io.prim_close)
   ; ("flush",Io.prim_flush)
   ; ("write",Io.prim_write)
-  ; ("write-char",Io.prim_write_char)
   ; ("write-line",Io.prim_write_line)
   ; ("read",Io.prim_read)
-  ; ("read-char",Io.prim_read_char)
   ; ("read-line",Io.prim_read_line)
 
     (* math prims *)
@@ -116,16 +117,11 @@ let prims =
     (* string prims *)
   ; ("mold",Strings.prim_mold)
   ; ("form",Strings.prim_form)
-  ; ("ord",Strings.prim_ord)
-  ; ("chr",Strings.prim_chr)
-  ; ("toupper",Strings.prim_toupper)
-  ; ("tolower",Strings.prim_tolower)
   ; ("&",Strings.prim_strcat)
   ; ("&&",Strings.prim_strcat_space)
-  ; ("scan",Strings.prim_scan)
-  ; ("rscan",Strings.prim_rscan)
-  ; ("uppercase",Strings.prim_uppercase)
-  ; ("lowercase",Strings.prim_lowercase)
+  ; ("toupper",Strings.prim_uppercase)
+  ; ("tolower",Strings.prim_lowercase)
+  ; ("sub",Strings.prim_sub)
   ]
 
 (* create a dynamic environment from the list of prims *)
@@ -137,3 +133,4 @@ let prim_env =
   in
   List.iter bind prims;
   env
+

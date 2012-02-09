@@ -43,13 +43,6 @@ let prim_write st xs =
   output_string chan s;
   Undef,xs'
 
-(* write a single character to an output port *)
-let prim_write_char st xs =
-  let (chan,xs') = coerce out_chan_of_cell (reduce1 st xs) in
-  let (c,xs') = coerce char_of_cell (reduce1 st xs') in
-  output_char chan c;
-  Undef,xs'
-
 (* write a string with a newline to an output port *)
 let prim_write_line st xs =
   let (chan,xs') = coerce out_chan_of_cell (reduce1 st xs) in
@@ -70,11 +63,6 @@ let prim_read st xs =
     with End_of_file -> ()
   end;
   Str (Buffer.contents buf),xs'
-
-(* read a single character from an input port *)
-let prim_read_char st xs =
-  let (chan,xs') = coerce in_chan_of_cell (reduce1 st xs) in
-  Char (input_char chan),xs'
 
 (* read a singe line from an input port *)
 let prim_read_line st xs =

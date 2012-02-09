@@ -29,11 +29,19 @@ and eval st src =
 
 (* interpret an entire frame, return the last value reduced *)
 and interp st = function
-  | [] -> Undef
+  | [] -> begin yield st; Undef end
   | xs ->
     match reduce1 st xs with
         (x,[]) -> x
       | (_,xs') -> interp st xs'
+
+(* count a reduction and maybe yield *)
+and yield st = 
+  incr st.reductions;
+  if !(st.reductions) land 0x80 = 0x80
+  then begin
+    Thread.yield ()
+  end
 
 (* pop a value from the frame, don't reduce it *)
 and pop1 = function
@@ -74,14 +82,14 @@ and apply st xs = function
 
 (* call a procedure with a list of arguments *)
 and call st xs = function
-  | Closure (env,ps,block) -> funcall st env ps block xs
-  | Prim (_,p) -> p st xs
+  | Closure (env,ps,block) -> begin yield st; funcall st env ps block xs end
+  | Prim (_,p) -> begin yield st; p st xs end
 
 (* call a closure, binding new locals, and executing *)
 and funcall st env ps block xs =
   let (env',xs') = frame st env xs ps in
   try
-    let x = interp { st with locals=env' } block in x,xs'
+    let x = interp { st with stack=env' } block in x,xs'
   with
       Return x -> x,xs'
     | e -> raise e
@@ -99,14 +107,14 @@ and frame st env xs =
 (* create a frame with new bindings, undefined *)
 and empty_frame st =
   let bind env p = (p.Atom.i,ref Undef)::env in
-  List.fold_left bind st.locals
+  List.fold_left bind st.stack
 
 (* bind a value to a variable *)
 and var st f xs =
   let ((x,xs') as r) = reduce1 st xs in
   begin
     try 
-      List.assoc f.Atom.i st.locals := x
+      List.assoc f.Atom.i st.stack := x
     with Not_found -> Hashtbl.replace st.env f.Atom.i x
   end;
   r
@@ -116,7 +124,7 @@ and expr st block xs = interp st block,xs
 
 (* lookup a local or global binding *)
 and lookup st f =
-  try !(List.assoc f.Atom.i st.locals) with Not_found -> 
+  try !(List.assoc f.Atom.i st.stack) with Not_found -> 
   try Hashtbl.find st.env f.Atom.i with Not_found ->
   raise (Unbound_symbol f.Atom.name)
 
