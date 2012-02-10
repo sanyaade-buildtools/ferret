@@ -115,7 +115,7 @@ and var st f xs =
   begin
     try 
       List.assoc f.Atom.i st.stack := x
-    with Not_found -> Hashtbl.replace st.env f.Atom.i x
+    with Not_found -> Hashtbl.replace (List.hd st.env) f.Atom.i x
   end;
   r
 
@@ -124,7 +124,10 @@ and expr st block xs = interp st block,xs
 
 (* lookup a local or global binding *)
 and lookup st f =
-  try !(List.assoc f.Atom.i st.stack) with Not_found -> 
-  try Hashtbl.find st.env f.Atom.i with Not_found ->
-  raise (Unbound_symbol f.Atom.name)
+  try !(List.assoc f.Atom.i st.stack) with Not_found ->
+  let rec find = function
+    | e::es -> (try Hashtbl.find e f.Atom.i with Not_found -> find es)
+    | [] -> raise (Unbound_symbol f.Atom.name)
+  in
+  find st.env  
 

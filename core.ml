@@ -63,23 +63,20 @@ let prim_make st xs =
 
 (* extract an binding from an object *)
 let prim_get st xs =
-  let (obj,xs') = coerce obj_of_cell (reduce1 st xs) in
-  let (s,xs') = coerce sym_of_cell (reduce1 st xs') in
+  let (lval,xs') = coerce obj_of_cell (pop1 xs) in
+  let (rval,xs') = coerce sym_of_cell (pop1 xs') in
   try
-    Atom.AtomMap.find s !obj,xs'
+    Atom.AtomMap.find rval !lval,xs'
   with Not_found -> Undef,xs'
 
 (* redefine a binding for an object *)
-let prim_set st xs =
-  let (obj,xs') = coerce obj_of_cell (reduce1 st xs) in
-  let (s,xs') = coerce sym_of_cell (reduce1 st xs') in
-  let (x,xs') = reduce1 st xs' in
-  begin
-    if x = Undef
-    then obj := Atom.AtomMap.remove s !obj
-    else obj := Atom.AtomMap.add s x !obj
-  end;
-  x,xs'
+let prim_call st xs =
+  let (lval,xs') = coerce obj_of_cell (pop1 xs) in
+  let (rval,xs') = coerce sym_of_cell (pop1 xs') in
+  try
+    let f = proc_of_cell (Atom.AtomMap.find rval !lval) in
+    call st xs' f
+  with Not_found -> Undef,xs'
 
 (* conditional branch *)
 let prim_if st xs =

@@ -43,7 +43,7 @@ and context = (t Atom.AtomMap.t) ref
 
 (* thread state *)
 and st =
-    { env        : dynamic_env
+    { env        : dynamic_env list
     ; stack      : local_env
     ; pinfo      : process_info
     ; reductions : int ref
@@ -52,7 +52,7 @@ and st =
 (* coroutine process info *)
 and process_info =
     { mailbox : t Queue.t
-    ; status  : process_result option ref
+    ; status  : process_result Mvar.t
     }
 
 (* corouting result *)
@@ -87,13 +87,13 @@ let obj = Obj (ref Atom.AtomMap.empty)
 (* create a new coroutine process *)
 let new_process () =
   { mailbox=Queue.create ()
-  ; status=ref None
+  ; status=Mvar.empty ()
   }
 
 (* create a new thread state *)
 let new_thread env =
   Hashtbl.replace env (Atom.intern "object").Atom.i obj;
-  { env=env
+  { env=[env]
   ; stack=[]
   ; pinfo=new_process ()
   ; reductions=ref 0
@@ -266,21 +266,6 @@ and compare_list a b =
       match compare_cell x y with
           0 -> compare_list xs ys
         | x -> x
-
-(* compare an array of cells *)
-and compare_array a b =
-  try
-    for i = 0 to Array.length a - 1 do
-      match compare_cell a.(i) b.(i) with
-          0 -> ()
-        | x -> raise (Compare_fail x)
-    done;
-    if Array.length b > Array.length a
-    then -1
-    else 0
-  with 
-      (Invalid_argument _) -> 1
-    | (Compare_fail x) -> x
 
 (* compare two objects *)
 and compare_obj a b =

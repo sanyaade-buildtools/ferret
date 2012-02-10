@@ -14,8 +14,9 @@ OCAMLLEX=ocamllex
 # ----------------------------------------------------------------------------
 # compiler and linker options
 
-COPTS=-thread -c -i
-MKOPTS=-thread -ccopt -O3 -inline 3
+OPTS=-thread
+COPTS=$(OPTS) -c -i
+MKOPTS=$(OPTS) -ccopt -O3 -inline 3
 LIBS=unix threads str
 
 # ----------------------------------------------------------------------------
@@ -28,7 +29,7 @@ TOP=ferret
 # input module files
 
 PRIMS=core math series io strings time prims
-MODULES=parsec lexer atom word cell reader interp $(PRIMS) term main
+MODULES=parsec lexer atom word mvar cell reader interp $(PRIMS) term main
 
 # ----------------------------------------------------------------------------
 # source files with proper extensions added
@@ -71,7 +72,7 @@ $(TOP):		.depend $(CMI) $(CMO)
 		$(OCAMLOPT) $(COPTS) $< > $@
 
 %.cmi:		%.mli
-		$(OCAMLOPT) $<
+		$(OCAMLOPT) $(OPTS) $<
 
 %.cmx:		%.ml
 		$(OCAMLOPT) $(MKOPTS) -c $<
