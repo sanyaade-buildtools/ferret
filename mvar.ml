@@ -14,6 +14,13 @@ type 'a t =
   ;         put_cond  : Condition.t
   }
 
+exception No_value
+
+(* helper function *)
+let some = function
+  | None -> raise No_value
+  | Some x -> x
+
 (* create a new, empty mvar *)
 let empty () =
   { contents=None
@@ -39,7 +46,7 @@ let take mvar =
   done;
   
   (* take it, empty out the contents *)
-  let x = mvar.contents in
+  let x = some mvar.contents in
   mvar.contents <- None;
 
   (* signal that it's okay to put something now *)
@@ -65,21 +72,19 @@ let put mvar x =
   Condition.signal mvar.take_cond;
   Mutex.unlock mvar.lock
 
-(* read the current value of an mvar *)
+(* take and immediately put a new value, return old value *)
+let swap mvar x =
+  let org = take mvar in
+  put mvar x;
+  org
+
+(* modify the contents of an mvar, return new value *)
+let modify mvar f =
+  let x' = f (take mvar) in
+  put mvar x';
+  x'
+
+(* read the current value of an mvar, and put it right back *)
 let read mvar =
-  Mutex.lock mvar.lock;
-
-  (* wait until there is something to read... *)
-  while mvar.contents = None do
-    Condition.wait mvar.take_cond mvar.lock
-  done;
-
-  (* get the current contents - don't empty the mailbox *)
-  let x = mvar.contents in
-
-  (* done *)
-  Mutex.unlock mvar.lock;
-
-  (* the read value *)
-  x
+  modify mvar (fun x -> x)
 
