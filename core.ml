@@ -21,6 +21,11 @@ let prim_fn st xs =
   let (block,xs') = coerce list_of_cell (reduce1 st xs') in
   Proc (Closure (st.stack,List.map sym_of_cell args,block)),xs'
 
+(* create a variable from a word *)
+let prim_var st xs =
+  let (s,xs') = coerce sym_of_cell (reduce1 st xs) in
+  Word (Word.Var s),xs'
+
 (* create a new lexical scope *)
 let prim_let st xs =
   let (vars,xs') = coerce list_of_cell (reduce1 st xs) in
@@ -123,6 +128,13 @@ let prim_apply st xs =
 let prim_do st xs =
   let (block,xs') = coerce list_of_cell (reduce1 st xs) in
   interp st block,xs'
+
+(* try and apply a block *)
+let prim_try st xs =
+  let (block,xs') = coerce list_of_cell (reduce1 st xs) in
+  try
+    interp st block,xs'
+  with e -> Undef,xs'
 
 (* reduce all the values in a block *)
 let prim_reduce st xs =

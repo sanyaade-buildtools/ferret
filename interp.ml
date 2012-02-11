@@ -131,3 +131,15 @@ and lookup st f =
   in
   find st.env  
 
+(* run a block until completed *)
+let run_thread st block =
+  try
+    let x = interp st block in
+    Mvar.put st.pinfo.status (Completed x)
+  with e -> Mvar.put st.pinfo.status (Terminated e)
+
+(* start a spawned thread running in a child process *)
+let fork_thread st block =
+  let st' = spawn_thread st in
+  Pid ((Thread.create (run_thread st') block),st'.pinfo)
+

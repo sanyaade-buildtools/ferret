@@ -20,6 +20,7 @@ type t =
   | Port_in of in_channel * string
   | Port_out of out_channel * string
   | Obj of context
+  | Pid of Thread.t * process_info
 
 (* numeric values *)
 and num =
@@ -53,6 +54,8 @@ and st =
 and process_info =
     { mailbox : t Queue.t
     ; status  : process_result Mvar.t
+    ; lock    : Mutex.t
+    ; full    : Condition.t
     }
 
 (* corouting result *)
@@ -64,13 +67,14 @@ and process_result =
 exception Not_a_array of t
 exception Not_a_boolean of t
 exception Not_a_float of t
+exception Not_a_function of t
 exception Not_a_int of t
 exception Not_a_list of t
 exception Not_a_number of t
 exception Not_a_obj of t
 exception Not_a_pair of t
 exception Not_a_port of t
-exception Not_a_proc of t
+exception Not_a_process of t
 exception Not_a_series of t
 exception Not_a_string of t
 exception Not_a_undef of t
@@ -88,6 +92,8 @@ let obj = Obj (ref Atom.AtomMap.empty)
 let new_process () =
   { mailbox=Queue.create ()
   ; status=Mvar.empty ()
+  ; lock=Mutex.create ()
+  ; full=Condition.create ()
   }
 
 (* create a new thread state *)
@@ -101,7 +107,11 @@ let new_thread env =
 
 (* spawn a new coroutine off a process *)
 let spawn_thread st = 
-  { st with stack=[]; pinfo=new_process () }
+  { env=Hashtbl.create 40::st.env
+  ; stack=[]
+  ; pinfo=new_process ()
+  ; reductions=ref 0 
+  }
 
 (* convert a cell to a readable string *)
 let rec mold = function
@@ -124,6 +134,7 @@ let rec mold = function
   | Port_in (_,s) -> mold_unreadable_obj "port in" s
   | Port_out (_,s) -> mold_unreadable_obj "port out" s
   | Obj context -> mold_context context
+  | Pid (pid,_) -> mold_unreadable_obj "pid" (string_of_int (Thread.id pid))
 
 (* convert a list of cells to a string *)
 and mold_list xs = String.concat " " (List.map mold xs)
@@ -222,12 +233,17 @@ let pair_of_cell = function
 (* procedure coercion *)
 let proc_of_cell = function
   | Proc p -> p
-  | x -> raise (Not_a_proc x)
+  | x -> raise (Not_a_function x)
 
 (* string coercion *)
 let string_of_cell = function
   | Str x -> x
   | x -> raise (Not_a_string x)
+
+(* thread coercion *)
+let thread_of_cell = function
+  | Pid (thread,pinfo) -> thread,pinfo
+  | x -> raise (Not_a_process x)
 
 (* var coercion *)
 let var_of_cell = function
@@ -248,6 +264,7 @@ let rec compare_cell = function
   | Port_in (_,_) -> raise Uncomparable_type
   | Port_out (_,_) -> raise Uncomparable_type
   | Proc a -> raise Uncomparable_type
+  | Pid (a,_) -> fun b -> compare_process a (thread_of_cell b)
   | Quote a -> fun b -> compare_cell a b
   | Obj a -> fun b -> compare_obj a (obj_of_cell b)
   | Str a -> fun b -> compare a (string_of_cell b)
@@ -280,6 +297,10 @@ and compare_num a b =
     | (Int x,Float y) -> compare (float_of_int x) y
     | (Float x,Int y) -> compare x (float_of_int y)
     | (Float x,Float y) -> compare x y
+
+(* compare the thread id of two processes *)
+and compare_process a (b,_) =
+  if a = b then 0 else raise Uncomparable_type
 
 (* override compare *)
 let compare = compare_cell

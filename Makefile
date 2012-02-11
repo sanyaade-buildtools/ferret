@@ -28,7 +28,7 @@ TOP=ferret
 # ----------------------------------------------------------------------------
 # input module files
 
-PRIMS=core math series io strings time prims
+PRIMS=core process math series io strings time prims
 MODULES=parsec lexer atom word mvar cell reader interp $(PRIMS) term main
 
 # ----------------------------------------------------------------------------

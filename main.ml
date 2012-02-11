@@ -24,8 +24,9 @@ let rec repl st =
         if String.length s > 0 then
         begin
           let x = eval st s in
-          if x <> Cell.Undef
-          then Printf.printf "%s==%s %s\n" green clear (Cell.mold x);
+          if x = Cell.Undef
+          then Printf.printf "  %sok%s\n" cyan clear
+          else Printf.printf "%s==%s %s\n" green clear (Cell.mold x);
           incr i
         end
       with 
@@ -54,6 +55,7 @@ let motd () =
 let _ =
   let st = Cell.new_thread Prims.prim_env in
   setup_term ();
+  Process.install_kill_signal ();
   Random.self_init ();
   motd ();
   load_ext_libs st;
