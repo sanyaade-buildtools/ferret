@@ -11,6 +11,7 @@ type t =
     Undef
   | Quote of t
   | Block of t list
+  | Array of int list * t array
   | Word of Word.t
   | Proc of proc
   | Bool of bool
@@ -129,12 +130,31 @@ let rec mold = function
   | Str s -> "\"" ^ (String.escaped s) ^ "\""
   | Num (Int i) -> string_of_int i
   | Num (Float f) -> string_of_float f
+  | Array (dim,xs) -> mold_array dim xs
   | Block xs -> Printf.sprintf "[%s]" (mold_list xs)
   | Expr xs -> Printf.sprintf "(%s)" (mold_list xs)
   | Port_in (_,s) -> mold_unreadable_obj "port in" s
   | Port_out (_,s) -> mold_unreadable_obj "port out" s
   | Obj context -> mold_context context
   | Pid (pid,_) -> mold_unreadable_obj "pid" (string_of_int (Thread.id pid))
+
+(* convert an array to a string *)
+and mold_array dim xs =
+  let rec mold_dims = function
+    | [] -> ""
+    | [x] -> string_of_int x
+    | (x::xs) -> Printf.sprintf "%d,%s" x (mold_dims xs)
+  in
+  let elts =
+    let buf = Buffer.create (Array.length xs * 4) in
+    for i = 0 to Array.length xs - 1 do
+      Buffer.add_string buf (mold xs.(i));
+      if i < Array.length xs - 1
+      then Buffer.add_char buf ' '
+    done;
+    Buffer.contents buf
+  in
+  Printf.sprintf "#%s{%s}" (mold_dims dim) elts
 
 (* convert a list of cells to a string *)
 and mold_list xs = String.concat " " (List.map mold xs)
@@ -170,6 +190,11 @@ and mold_unreadable_obj =
 
 (* coerce function *)
 let coerce f (x,xs) = (f x,xs)
+
+(* array coercion *)
+let array_of_cell = function
+  | Array (dims,xs) -> dims,xs
+  | x -> raise (Not_a_array x)
 
 (* atom coercion *)
 let atom_of_cell = function
@@ -257,6 +282,7 @@ let sym_of_cell = function
 
 (* compare function *)
 let rec compare_cell = function
+  | Array (_,a) -> fun b -> compare a (snd (array_of_cell b))
   | Bool a -> fun b -> compare a (bool_of_cell b)
   | Block a -> fun b -> compare_list a (list_of_cell b)
   | Expr a -> fun b -> compare_list a (list_of_cell b)
@@ -272,6 +298,21 @@ let rec compare_cell = function
   | Undef -> function
       | Undef -> 0
       | x -> raise (Not_a_undef x)
+
+(* compare the elements of two arrays *)
+and compare_array a b =
+  if a == b
+  then 0
+  else begin
+    try
+      for i = 0 to min (Array.length a) (Array.length b) - 1 do
+        match compare_cell a.(i) b.(i) with
+            0 -> () 
+          | x -> raise (Compare_fail x)
+      done;
+      compare (Array.length a) (Array.length b)
+    with Compare_fail x -> x
+  end
 
 (* compare a list of cells *)
 and compare_list a b =

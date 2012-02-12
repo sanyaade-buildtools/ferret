@@ -70,6 +70,11 @@ append: fn [xs ys] [
   foldr fn [acc x] [x , acc] ys xs
 ]
 
+;; join a list of lists together
+concat: fn [xs] [
+  foldl :append [] xs
+]
+
 ;; map a function across a list
 map: fn [f xs] [
   foldr fn [acc x] [(f x) , acc] [] xs

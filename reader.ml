@@ -36,6 +36,7 @@ let lexer =
 let rec token st =
   (lexeme lexer (choose [ quote
                         ; constant
+                        ; array
                         ; block
                         ; expr
                         ; string
@@ -62,6 +63,17 @@ and constant st =
           ; reserved lexer "-inf" >> return (Num (Float neg_infinity))
           ])
     st
+
+(* an array *)
+and array st =
+  let dims = char '#' >> sep_by1 decimal (char ',') in
+  let make_array dim xs =
+    let len = List.fold_left ( * ) 1 dim in
+    let arr = Array.make len Undef in
+    ignore (List.fold_left (fun i x -> arr.(i) <- x; i + 1) 0 xs);
+    return (Array (dim,arr))
+  in
+  (dims >>= (fun dim -> braces lexer (many token) >>= make_array dim)) st
 
 (* a block of tokens *)
 and block st = (brackets lexer (many token) >>= fun xs -> return (Block xs)) st
