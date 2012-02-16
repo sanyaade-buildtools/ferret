@@ -8,16 +8,9 @@ OCAMLC=ocamlc
 OCAMLOPT=ocamlopt
 OCAMLMKTOP=ocamlmktop
 OCAMLDEP=ocamldep
+OCAMLFIND=ocamlfind
 OCAMLYACC=ocamlyacc
 OCAMLLEX=ocamllex
-
-# ----------------------------------------------------------------------------
-# compiler and linker options
-
-OPTS=-thread
-COPTS=$(OPTS) -c -i
-MKOPTS=$(OPTS) -ccopt -O3 -inline 3
-LIBS=unix threads str
 
 # ----------------------------------------------------------------------------
 # final executable names
@@ -26,26 +19,47 @@ OUT=runferret
 TOP=ferret
 
 # ----------------------------------------------------------------------------
+# third-party, site-lib modules
+
+OCAMLNET=equeue netstring netsys netclient smtp
+
+# ----------------------------------------------------------------------------
+# compiler and linker options
+
+OPTS=-thread -package "$(OCAMLNET)" -linkpkg -ccopt -O2 -inline 3
+
+# ----------------------------------------------------------------------------
 # input module files
 
-PRIMS=core process math series io strings time prims
-MODULES=parsec lexer atom word mvar cell reader interp $(PRIMS) term main
+SOURCES= \
+  parsec \
+  lexer \
+  atom \
+  word \
+  mvar \
+  cell \
+  reader \
+  interp \
+  core \
+  process \
+  math \
+  series \
+  io \
+  strings \
+  time \
+  prims \
+  term \
+  main \
 
 # ----------------------------------------------------------------------------
 # source files with proper extensions added
 
-ML   := $(addsuffix .ml, $(MODULES))
-MLI  := $(addsuffix .mli, $(MODULES))
-CMO  := $(addsuffix .cmo, $(MODULES))
-CMI  := $(addsuffix .cmi, $(MODULES))
-CMX  := $(addsuffix .cmx, $(MODULES))
-OBJ  := $(addsuffix .o, $(MODULES))
-
-# ----------------------------------------------------------------------------
-# external libraries
-
-CMA  := $(addsuffix .cma, $(LIBS))
-CMXA := $(addsuffix .cmxa, $(LIBS))
+ML   := $(addsuffix .ml, $(SOURCES))
+MLI  := $(addsuffix .mli, $(SOURCES))
+CMO  := $(addsuffix .cmo, $(SOURCES))
+CMI  := $(addsuffix .cmi, $(SOURCES))
+CMX  := $(addsuffix .cmx, $(SOURCES))
+OBJ  := $(addsuffix .o, $(SOURCES))
 
 # ----------------------------------------------------------------------------
 # top-level rules
@@ -62,23 +76,23 @@ clean:
 # ----------------------------------------------------------------------------
 # build rules
 
-$(OUT):		.depend $(CMI) $(CMX)
-		$(OCAMLOPT) $(CMXA) $(MKOPTS) $(CMX) -o $(OUT)
+$(OUT):		.depend $(ML)
+		$(OCAMLFIND) $(OCAMLOPT) $(OPTS) $(ML) -o $(OUT)
 
-$(TOP):		.depend $(CMI) $(CMO)
-		$(OCAMLMKTOP) $(CMO) -o $(TOP)
+$(TOP):		.depend $(ML)
+		$(OCAMLFIND) $(OCAMLMKTOP) $(OPTS) $(ML) -o $(TOP)
 
 %.mli:		%.ml
-		$(OCAMLOPT) $(COPTS) $< > $@
+		$(OCAMLFIND) $(OCAMLOPT) $(OPTS) $(PKGS) -c -i $< > $@
 
 %.cmi:		%.mli
-		$(OCAMLOPT) $(OPTS) $<
+		$(OCAMLFIND) $(OCAMLOPT) $(OPTS) $(PKGS) $<
 
 %.cmx:		%.ml
-		$(OCAMLOPT) $(MKOPTS) -c $<
+		$(OCAMLFIND) $(OCAMLOPT) $(OPTS) $(PKGS) -c $<
 
 %.cmo:		%.ml
-		$(OCAMLC) $(MKOPTS) -c $<
+		$(OCAMLFIND) $(OCAMLC) $(OPTS) $(PKGS) -c $<
 
 .depend:	$(ML)
 		$(OCAMLDEP) *.mli *.ml > .depend

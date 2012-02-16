@@ -18,8 +18,10 @@ type?: fn [t] [fn [x] [t = type x]]
 
 ;; type predicates
 none?: type? 'none!
+array?: type? 'array!
 quote?: type? 'quote!
 word?: type? 'word!
+var?: type? 'var!
 proc?: type? 'proc!
 num?: type? 'num!
 string?: type? 'string!
@@ -28,7 +30,6 @@ boolean?: type? 'boolean!
 block?: type? 'block!
 paren?: type? 'paren!
 pid?: type? 'pid!
-port?: type? 'port!
 socket?: type? 'socket!
 
 ;; create a simple function with no arguments
@@ -36,12 +37,12 @@ does: fn [block] [fn [] block]
 
 ;; conditional apply on true
 when: fn [test block] [
-  if test [do block] [none]
+  if test [do block] []
 ]
 
 ;; conditional apply on false
 unless: fn [test block] [
-  if test [none] [do block]
+  if test [] [do block]
 ]
 
 ;; execute a block n times

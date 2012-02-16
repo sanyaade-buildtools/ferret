@@ -1,30 +1,9 @@
 ;; io.ferret
 ;;
 
-;; print an object (without a newline)
-prin: fn [x] [
-  write stdout form x
-]
-
-;; print an object to stdout
-print: fn [x] [
-  write-line stdout form x
-]
-
-;; print an object to stderr
-prerr: fn [x] [
-  write-line stderr form x
-]
-
 ;; print to stdout, but return original value
 probe: fn [x] [
   print x x
-]
-
-;; read a line from stdin
-input: fn [] [
-  flush stdout
-  read-line stdin
 ]
 
 ;; prompt the user for a response

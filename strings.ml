@@ -18,7 +18,7 @@ let prim_mold st xs =
 let prim_form st xs =
   let (x,xs') = reduce1 st xs in
   match x with
-      Str s -> Str s,xs'
+      Str _ -> x,xs'
     | _ -> Str (mold x),xs'
 
 (* append one string to another *)

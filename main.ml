@@ -9,28 +9,24 @@
 open Term
 open Interp
 
-(* display the read prompt and read a line *)
-let prompt i =
-  Printf.printf "%s%d-%s " yellow i clear;
-  read_line ()
+(* the last returned value *)
+let it = Atom.intern "it"
+
+(* print the output of a value *)
+let show = function
+  | Cell.Undef -> Printf.printf "  %sok%s\n" cyan clear
+  | x -> Printf.printf "%s==%s %s\n" green clear (Cell.mold x)
 
 (* read-eval-print loop *)
 let rec repl st =
   try
-    let i = ref 0 in
     while true do
       try
-        let s = prompt !i in
-        if String.length s > 0 then
-        begin
-          let x = eval st s in
-          if x = Cell.Undef
-          then Printf.printf "  %sok%s\n" cyan clear
-          else Printf.printf "%s==%s %s\n" green clear (Cell.mold x);
-          incr i
-        end
+        let x = eval st (read_line ()) in
+        bind st it x;
+        show x
       with 
-          Sys.Break -> Printf.printf "\n%sInterrupt!%s\n" red clear
+          Sys.Break -> Printf.printf "\n** %sInterrupt!%s\n" red clear
         | End_of_file -> raise End_of_file
         | e -> Printf.printf "%s** %s%s\n" red (Printexc.to_string e) clear;
     done
@@ -58,6 +54,8 @@ let _ =
   Process.install_kill_signal ();
   Random.self_init ();
   motd ();
+  bind st it Cell.Undef;
   load_ext_libs st;
+  show Cell.Undef;
   repl st 
 

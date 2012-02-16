@@ -12,9 +12,6 @@ open Interp
 exception ArityMismatch of Cell.t list
 exception Fail of Cell.t
 
-(* return # of reductions performed by this thread *)
-let prim_reducs st xs = Num (Int !(st.reductions)),xs
-
 (* create a closure *)
 let prim_fn st xs =
   let (args,xs') = coerce list_of_cell (reduce1 st xs) in
@@ -131,25 +128,10 @@ let prim_do st xs =
 (* try and apply a block *)
 let prim_try st xs =
   let (block,xs') = coerce list_of_cell (reduce1 st xs) in
+  let (err,xs') = coerce list_of_cell (reduce1 st xs') in
   try
     interp st block,xs'
-  with e -> Undef,xs'
-
-(* reduce all the values in a block *)
-let prim_reduce st xs =
-  let (block,xs') = coerce list_of_cell (reduce1 st xs) in
-  let rec reduce_ = function
-    | [] -> []
-    | xs -> let (x,xs') = reduce1 st xs in x::reduce_ xs'
-  in
-  Block (reduce_ block),xs'
-
-(* load a string, parsing it and returning a block *)
-let prim_load st xs =
-  let (s,xs') = coerce string_of_cell (reduce1 st xs) in
-  match Reader.tokenize s with
-      Some (tokens,_) -> Block tokens,xs'
-    | None -> raise Reader.Parse_error
+  with _ -> interp st err,xs'
 
 (* execute a block forever *)
 let prim_forever st xs =

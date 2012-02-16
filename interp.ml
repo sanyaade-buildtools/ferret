@@ -66,7 +66,7 @@ and primary st = function
 and binary st f x xs =
   let (lval,_) = primary st [x] in
   let (rval,xs') = primary st xs in
-  let (x',_) = apply st [lval;rval] (lookup st f) in
+  let (x',_) = apply st [Quote lval;Quote rval] (lookup st f) in
   reduce1 st (x'::xs')
 
 (* evaluate a word *)
@@ -115,9 +115,13 @@ and var st f xs =
   begin
     try 
       List.assoc f.Atom.i st.stack := x
-    with Not_found -> Hashtbl.replace (List.hd st.env) f.Atom.i x
+    with Not_found -> bind st f x
   end;
   r
+
+(* bind an atom to a value *)
+and bind st f x =
+  Hashtbl.replace (List.hd st.env) f.Atom.i x
 
 (* interpret a block and return back *)
 and expr st block xs = interp st block,xs

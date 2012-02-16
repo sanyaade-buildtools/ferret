@@ -39,9 +39,8 @@ syn match ferretHex     "[+-]\=0x\x\+"
 syn match ferretOct     "[+-]\=0o\o\+"
 
 " Keywords
-syn keyword ferretConst none stdout stdin stderr object
-syn keyword ferretConst true false 
-syn keyword ferretConst newline space cr lf tab
+syn keyword ferretConst none object true false newline space cr lf tab
+syn keyword ferretKey   file url email
 syn keyword ferretKey   fn let return make
 syn keyword ferretKey   if when unless
 syn keyword ferretKey   for foreach forever while until

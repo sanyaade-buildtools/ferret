@@ -64,25 +64,23 @@ and constant st =
           ])
     st
 
-(* an array *)
+(* an array of tokens *)
 and array st =
-  let dims = char '#' >> sep_by1 decimal (char ',') in
-  let make_array dim xs =
-    let len = List.fold_left ( * ) 1 dim in
-    let arr = Array.make len Undef in
-    ignore (List.fold_left (fun i x -> arr.(i) <- x; i + 1) 0 xs);
-    return (Array (dim,arr))
-  in
-  (dims >>= (fun dim -> braces lexer (many token) >>= make_array dim)) st
+  let toks = brackets lexer (many token) in
+  let mkarr xs = return (Array (Array.of_list xs)) in
+  (char '#' >> toks >>= mkarr) st
 
 (* a block of tokens *)
-and block st = (brackets lexer (many token) >>= fun xs -> return (Block xs)) st
+and block st = 
+  (brackets lexer (many token) >>= fun xs -> return (Block xs)) st
 
 (* a block expression *)
-and expr st = (parens lexer (many1 token) >>= fun  xs -> return (Expr xs)) st
+and expr st =
+  (parens lexer (many1 token) >>= fun  xs -> return (Expr xs)) st
 
 (* string literal *)
-and string st = (string_lit lexer >>= fun s -> return (Str s)) st
+and string st = 
+  (string_lit lexer >>= fun s -> return (Str s)) st
 
 (* numeric literal *)
 and num st = 

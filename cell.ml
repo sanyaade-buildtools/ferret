@@ -8,20 +8,31 @@
 
 (* fundamental cell *)
 type t =
-    Undef
-  | Quote of t
+  | Undef
+  | Array of t array
   | Block of t list
-  | Array of int list * t array
-  | Word of Word.t
-  | Proc of proc
   | Bool of bool
-  | Str of string
-  | Num of num
+  | Email of string
   | Expr of t list
+  | Filespec of filespec
+  | Num of num
+  | Obj of context
+  | Pair of t * t
+  | Pid of Thread.t * process_info
+  | Proc of proc
+  | Quote of t
+  | Str of string
+  | Word of Word.t
+
+(* file location spec *)
+and filespec =
+  | File of string
+  | Url of Neturl.url
+
+(* channel ports *)
+and port =
   | Port_in of in_channel * string
   | Port_out of out_channel * string
-  | Obj of context
-  | Pid of Thread.t * process_info
 
 (* numeric values *)
 and num =
@@ -30,7 +41,7 @@ and num =
 
 (* procedures *)
 and proc = 
-    Closure of local_env * Atom.t list * t list
+  | Closure of local_env * Atom.t list * t list
   | Prim of Atom.t * native
 
 (* dynamically scoped and lexically scoped environments *)
@@ -67,6 +78,8 @@ and process_result =
 (* type exceptions *)
 exception Not_a_array of t
 exception Not_a_boolean of t
+exception Not_a_email of t
+exception Not_a_file of t
 exception Not_a_float of t
 exception Not_a_function of t
 exception Not_a_int of t
@@ -75,10 +88,13 @@ exception Not_a_number of t
 exception Not_a_obj of t
 exception Not_a_pair of t
 exception Not_a_port of t
+exception Not_a_port_in of t
+exception Not_a_port_out of t
 exception Not_a_process of t
-exception Not_a_series of t
+exception Not_a_spec of t
 exception Not_a_string of t
 exception Not_a_undef of t
+exception Not_a_url of t
 exception Not_a_var of t
 exception Not_a_word of t
 
@@ -117,44 +133,39 @@ let spawn_thread st =
 (* convert a cell to a readable string *)
 let rec mold = function
   | Undef -> "none"
+  | Array xs -> Printf.sprintf "#[%s]" (mold_array xs)
+  | Block xs -> Printf.sprintf "[%s]" (mold_list xs)
+  | Bool false -> "false"
+  | Bool true -> "true"
+  | Email email -> Printf.sprintf "email %s" (String.escaped email)
+  | Expr xs -> Printf.sprintf "(%s)" (mold_list xs)
+  | Filespec (File file) -> Printf.sprintf "file \"%s\"" file
+  | Filespec (Url url) -> Printf.sprintf "url \"%s\"" (Neturl.string_of_url url)
+  | Num (Int i) -> string_of_int i
+  | Num (Float f) -> string_of_float f
+  | Obj context -> mold_context context
+  | Pair (a,b) -> Printf.sprintf "(%s @ %s)" (mold a) (mold b)
+  | Pid (pid,_) -> mold_unreadable_obj "pid" (string_of_int (Thread.id pid))
+  | Proc (Closure (_,ps,xs)) -> mold_fn ps xs
+  | Proc (Prim (_,_)) -> "native"
   | Quote x -> "'" ^ mold x
+  | Str s -> "\"" ^ (String.escaped s) ^ "\""
   | Word (Word.Sym s) -> s.Atom.name
   | Word (Word.Binary (Word.Op,s)) -> s.Atom.name
   | Word (Word.Binary (Word.Infix,s)) -> "`" ^ s.Atom.name ^ "`"
   | Word (Word.Getter s) -> ":" ^ s.Atom.name
   | Word (Word.Var s) -> s.Atom.name ^ ":"
-  | Proc (Closure (_,ps,xs)) -> mold_fn ps xs
-  | Proc (Prim (_,_)) -> "native"
-  | Bool false -> "false"
-  | Bool true -> "true"
-  | Str s -> "\"" ^ (String.escaped s) ^ "\""
-  | Num (Int i) -> string_of_int i
-  | Num (Float f) -> string_of_float f
-  | Array (dim,xs) -> mold_array dim xs
-  | Block xs -> Printf.sprintf "[%s]" (mold_list xs)
-  | Expr xs -> Printf.sprintf "(%s)" (mold_list xs)
-  | Port_in (_,s) -> mold_unreadable_obj "port in" s
-  | Port_out (_,s) -> mold_unreadable_obj "port out" s
-  | Obj context -> mold_context context
-  | Pid (pid,_) -> mold_unreadable_obj "pid" (string_of_int (Thread.id pid))
 
 (* convert an array to a string *)
-and mold_array dim xs =
-  let rec mold_dims = function
-    | [] -> ""
-    | [x] -> string_of_int x
-    | (x::xs) -> Printf.sprintf "%d,%s" x (mold_dims xs)
-  in
-  let elts =
-    let buf = Buffer.create (Array.length xs * 4) in
-    for i = 0 to Array.length xs - 1 do
-      Buffer.add_string buf (mold xs.(i));
-      if i < Array.length xs - 1
-      then Buffer.add_char buf ' '
-    done;
-    Buffer.contents buf
-  in
-  Printf.sprintf "#%s{%s}" (mold_dims dim) elts
+and mold_array xs =
+  let buf = Buffer.create (Array.length xs * 4) in
+  let accum i x =
+    Buffer.add_string buf (mold x);
+    if i < Array.length xs - 1
+    then Buffer.add_char buf ' '
+  in  
+  Array.iteri accum xs;
+  Buffer.contents buf
 
 (* convert a list of cells to a string *)
 and mold_list xs = String.concat " " (List.map mold xs)
@@ -169,7 +180,7 @@ and mold_context obj =
     Buffer.add_char buf ' '
   in
   if Atom.AtomMap.is_empty !obj
-  then "object"
+  then "make object []"
   else
     begin
       Atom.AtomMap.iter dump !obj;
@@ -193,7 +204,7 @@ let coerce f (x,xs) = (f x,xs)
 
 (* array coercion *)
 let array_of_cell = function
-  | Array (dims,xs) -> dims,xs
+  | Array xs -> xs
   | x -> raise (Not_a_array x)
 
 (* atom coercion *)
@@ -202,33 +213,43 @@ let atom_of_cell = function
   | Word (Word.Binary (_,x)) -> x
   | x -> raise (Not_a_word x)
 
-(* block coercion *)
-let list_of_cell = function
-  | Block xs -> xs
-  | x -> raise (Not_a_list x)
-
 (* boolean coercion *)
 let bool_of_cell = function
   | Undef -> false
   | Bool x -> x
   | x -> raise (Not_a_boolean x)
 
+(* email coercion *)
+let email_of_cell = function
+  | Email e -> e
+  | x -> raise (Not_a_email x)
+
+(* file coercion *)
+let file_of_cell = function
+  | Filespec (File f) -> f
+  | x -> raise (Not_a_file x)
+
 (* float coercion *)
 let float_of_cell = function
   | Num (Float x) -> x
   | Num (Int x) -> float_of_int x
   | x -> raise (Not_a_float x)
-
+(*
 (* input channel coercion *)
 let in_chan_of_cell = function
   | Port_in (h,_) -> h
   | x -> raise (Not_a_port x)
-
+*)
 (* integer coercion *)
 let int_of_cell = function
   | Num (Int x) -> x
   | Num (Float x) -> int_of_float x
   | x -> raise (Not_a_int x)
+
+(* list coercion *)
+let list_of_cell = function
+  | Block xs -> xs
+  | x -> raise (Not_a_list x)
 
 (* number coercion *)
 let num_of_cell = function
@@ -244,21 +265,26 @@ let obj_of_cell = function
 let option_of_cell = function
   | Undef -> None
   | x -> Some x
-
+(*
 (* output channel coercion *)
 let out_chan_of_cell = function
   | Port_out (h,_) -> h
   | x -> raise (Not_a_port x)
-
+*)
 (* pair coercion *)
 let pair_of_cell = function
-  | Block [a;b] -> a,b
+  | Pair (a,b) -> a,b
   | x -> raise (Not_a_pair x)
 
 (* procedure coercion *)
 let proc_of_cell = function
   | Proc p -> p
   | x -> raise (Not_a_function x)
+
+(* spec coercion *)
+let spec_of_cell = function
+  | Filespec x -> x
+  | x -> raise (Not_a_spec x)
 
 (* string coercion *)
 let string_of_cell = function
@@ -269,6 +295,11 @@ let string_of_cell = function
 let thread_of_cell = function
   | Pid (thread,pinfo) -> thread,pinfo
   | x -> raise (Not_a_process x)
+
+(* url coercion *)
+let url_of_cell = function
+  | Filespec (Url url) -> url
+  | x -> raise (Not_a_url x)
 
 (* var coercion *)
 let var_of_cell = function
@@ -282,13 +313,14 @@ let sym_of_cell = function
 
 (* compare function *)
 let rec compare_cell = function
-  | Array (_,a) -> fun b -> compare a (snd (array_of_cell b))
-  | Bool a -> fun b -> compare a (bool_of_cell b)
+  | Array a -> fun b -> compare_array a (array_of_cell b)
   | Block a -> fun b -> compare_list a (list_of_cell b)
+  | Bool a -> fun b -> compare a (bool_of_cell b)
+  | Email a -> fun b -> compare a (email_of_cell b)
   | Expr a -> fun b -> compare_list a (list_of_cell b)
+  | Filespec a -> fun b -> compare_spec a (spec_of_cell b)
   | Num a -> fun b -> compare_num a (num_of_cell b)
-  | Port_in (_,_) -> raise Uncomparable_type
-  | Port_out (_,_) -> raise Uncomparable_type
+  | Pair (a1,a2) -> fun b -> compare_pair (a1,a2) (pair_of_cell b)
   | Proc a -> raise Uncomparable_type
   | Pid (a,_) -> fun b -> compare_process a (thread_of_cell b)
   | Quote a -> fun b -> compare_cell a b
@@ -299,20 +331,14 @@ let rec compare_cell = function
       | Undef -> 0
       | x -> raise (Not_a_undef x)
 
-(* compare the elements of two arrays *)
+(* compare two arrays *)
 and compare_array a b =
-  if a == b
-  then 0
-  else begin
-    try
-      for i = 0 to min (Array.length a) (Array.length b) - 1 do
-        match compare_cell a.(i) b.(i) with
-            0 -> () 
-          | x -> raise (Compare_fail x)
-      done;
-      compare (Array.length a) (Array.length b)
-    with Compare_fail x -> x
-  end
+  let len = min (Array.length a) (Array.length b) in
+  for i = 0 to len - 1 do
+    let c = compare a.(i) b.(i) in
+    if c <> 0 then raise (Compare_fail c)
+  done;
+  compare (Array.length a) (Array.length b)
 
 (* compare a list of cells *)
 and compare_list a b =
@@ -324,6 +350,12 @@ and compare_list a b =
       match compare_cell x y with
           0 -> compare_list xs ys
         | x -> x
+
+(* compare two pairs *)
+and compare_pair (a1,a2) (b1,b2) =
+  match compare_cell a1 b1 with
+      0 -> compare_cell a2 b2
+    | x -> x
 
 (* compare two objects *)
 and compare_obj a b =
@@ -342,6 +374,13 @@ and compare_num a b =
 (* compare the thread id of two processes *)
 and compare_process a (b,_) =
   if a = b then 0 else raise Uncomparable_type
+
+(* compare two location specs *)
+and compare_spec a b =
+  match a,b with
+      (File x,File y) -> compare x y
+    | (Url x,Url y) -> compare x y
+    | (_,_) -> raise Uncomparable_type
 
 (* override compare *)
 let compare = compare_cell
