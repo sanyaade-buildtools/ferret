@@ -37,12 +37,12 @@ does: fn [block] [fn [] block]
 
 ;; conditional apply on true
 when: fn [test block] [
-  if test [do block] []
+  if test block []
 ]
 
 ;; conditional apply on false
 unless: fn [test block] [
-  if test [] [do block]
+  if test [] block
 ]
 
 ;; execute a block n times
