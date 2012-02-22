@@ -16,6 +16,7 @@ let prims =
   [ ("bye",prim_bye)
 
     (* core prims *)
+  ; ("modules",Core.prim_modules)
   ; ("abort",Core.prim_abort)
   ; ("clear",Core.prim_clear)
   ; ("dup",Core.prim_dup)

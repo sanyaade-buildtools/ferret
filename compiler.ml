@@ -11,14 +11,12 @@ open Lexer
 open Parsec
 open Atom
 
+exception Invalid_module of string
+exception Module_not_found of string
+exception No_dictionary
 exception Parse_error
 exception Syntax_error of string
 exception Unbound_symbol of string
-
-(* compiled parse token *)
-type tok =
-  | Let of Atom.t * Cell.xt list
-  | XT of Cell.xt
 
 (* lexer for the language *)
 let lexer =
@@ -29,7 +27,9 @@ let lexer =
   ; ident_letter   = alphanum <|> one_of "!@*&/+=<>?,.-;:"
   ; op_start       = one_of "[]{}"
   ; op_letter      = pzero
-  ; reserved_names = [ ":"
+  ; reserved_names = [ "in"
+                     ; "use"
+                     ; ":"
                      ; "with"
                      ; "->"
                      ; ";"
@@ -61,7 +61,9 @@ let lexer =
 
 (* parse a single token *)
 let token = 
-  choose [ reserved lexer ":" >> return (Kwd ":")
+  choose [ reserved lexer "in" >> return (Kwd "in")
+         ; reserved lexer "use" >> return (Kwd "use")
+         ; reserved lexer ":" >> return (Kwd ":")
          ; reserved lexer "with" >> return (Kwd "with")
          ; reserved lexer "->" >> return (Kwd "->")
          ; reserved lexer ";" >> return (Kwd ";")
@@ -96,30 +98,65 @@ let token =
 (* convert a string to a list of tokens *)
 let tokenize = parse (between (whitespace lexer) eof (many token))
 
+(* a module name from a string *)
+let module_name s =
+  if s.[0] < 'A' || s.[0] > 'Z' then raise (Invalid_module s) else intern s
+
+(* shuffle a loaded module to the top *)
+let shuffle st p =
+  try
+    let m = List.assq p st.Cell.env in
+    let rm = List.remove_assq p st.Cell.env in
+    { st with Cell.env=(p,m)::rm }
+  with Not_found -> raise (Module_not_found p.Atom.name)
+
+(* move a module to the top or push a new module *)
+let push st p =
+  let m = module_name p in
+  let d = IntMap.empty in
+  try shuffle st m with _ -> { st with Cell.env=(m,d)::st.Cell.env }
+
+(* shuffle loaded modules to the top of the dictionary *)
+let use st = List.fold_left (fun st m -> shuffle st (module_name m)) st
+
 (* define a new word in the top library *)
 let bind st s xs =
   let def = 
     { Cell.def=Cell.Colon xs 
     } 
   in
-  { st with Cell.env=IntMap.add (intern s).Atom.i def st.Cell.env }
+  match st.Cell.env with
+      [] -> raise No_dictionary
+    | (k,d)::ds -> { st with Cell.env=(k,IntMap.add (intern s).Atom.i def d)::ds }
 
 (* lookup a word in the dictionary *)
 let find st ps s =
+  let rec lookup = function
+    | [] -> raise Not_found
+    | (_,d)::ds -> try IntMap.find s.Atom.i d with Not_found -> lookup ds
+  in
   try
     if List.mem s ps
     then Cell.Local s
-    else Cell.Word (s,IntMap.find s.Atom.i st.Cell.env)
+    else Cell.Word (s,lookup st.Cell.env)
   with Not_found -> raise (Unbound_symbol s.Atom.name)
 
 (* parse a program of bindings and executable tokens *)
 let rec prog st = parser
+  | [< 'Kwd "in"; 'Ident s; xs,st'=prog (push st s) >] -> xs,st'
+  | [< 'Kwd "use"; ms=modules; xs,st'=prog (use st ms) >] -> xs,st'
   | [< 'Kwd ":"; 'Ident s; xs=body st []; xs,st'=prog (bind st s xs) >] -> xs,st'
   | [< 'Kwd "with"; ps=locals; xs=body st ps; xs',st'=prog st >] -> 
     Cell.With (ps,xs)::xs',st'
   | [< x=factor st []; xs,st'=prog st >] -> x::xs,st'
   | [< 'Kwd s >] -> raise (Syntax_error s)
   | [< >] -> [],st
+
+(* module list *)
+and modules = parser
+  | [< 'Ident x; xs=modules >] -> x::xs
+  | [< 'Kwd ";" >] -> []
+  | [< >] -> []
 
 (* lexical frame *)
 and body st ps = parser
@@ -176,7 +213,9 @@ and while_repeat st ps = parser
 
 (* words and literals *)
 and xt st ps = parser
-  | [< 'Ident s >] -> find st ps (intern s)
+  | [< 'Ident s >] -> if s.[0] >= 'A' && s.[0] <= 'Z' 
+                      then Cell.Lit (Cell.Atom (intern s))
+                      else find st ps (intern s)
   | [< x=literal st ps >] -> Cell.Lit (x)
 
 (* literal constant *)

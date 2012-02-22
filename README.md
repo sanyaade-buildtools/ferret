@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Ferret is a functional, concatenative, symbolic language with roots in Forth, Haskell, and Erlang. It's 100% interpreted, but extremely fast. The most distinctive characteristic of Ferret is that it is a transactional language. This means that an entire block succeeds or the entire VM rolls back to its last, previously known, good state. In addition to being transactional, Ferret also supports the following features:
+Ferret is a functional, concatenative, symbolic language with roots in Forth, Haskell, and Erlang. It's interpreted, but extremely fast. The most distinctive characteristic of Ferret is that it is a transactional language. This means that an entire block succeeds or the entire VM rolls back to its last, previously known, good state. In addition to being transactional, Ferret also supports the following features:
 
 * Atoms (symbols)
 * Light weight processes

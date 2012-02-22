@@ -68,7 +68,7 @@ and dict = (Atom.t * dynamic_env) list
 
 (* thread state *)
 and st =
-    { env    : dynamic_env
+    { env    : dict
     ; locals : local_env
     ; stack  : t list
     ; cs     : t list
@@ -122,10 +122,12 @@ let new_process () =
 
 (* create a new thread state *)
 let new_thread env =
-  let bind map (s,p) = 
-    Atom.IntMap.add (Atom.intern s).Atom.i { def=Prim p } map 
-  in
-  { env=List.fold_left bind Atom.IntMap.empty env
+  let bind m (s,p) = Atom.IntMap.add (Atom.intern s).Atom.i { def=Prim p } m in
+  let core = List.fold_left bind Atom.IntMap.empty env in
+  let user = Atom.IntMap.empty in
+  { env=[ Atom.intern "User", user
+        ; Atom.intern "Core", core
+        ]
   ; locals=[]
   ; stack=[]
   ; cs=[]

@@ -12,6 +12,11 @@ open Interp
 exception Abort of string
 exception Control_stack_underflow
 
+(* list the current modules *)
+let prim_modules st =
+  let xs = List.map (fun (m,_) -> Atom m) st.env in
+  { st with stack=List xs::st.stack }
+
 (* raise a failure assertion *)
 let prim_abort st =
   let (s,_) = coerce string_of_cell (pop st) in raise (Abort s)
