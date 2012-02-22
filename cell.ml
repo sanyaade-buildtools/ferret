@@ -11,6 +11,7 @@ type t =
   | Block of local_env * xt list
   | Bool of bool
   | Char of char
+  | Filespec of filespec
   | List of t list
   | Num of num
   | Pid of Thread.t * process_info
@@ -152,6 +153,8 @@ let rec mold = function
   | Bool false -> "false"
   | Bool true -> "true"
   | Char c -> Printf.sprintf "'%s'" (Char.escaped c)
+  | Filespec (File f) -> mold_unreadable_obj "file" f
+  | Filespec (Url url) -> mold_unreadable_obj "url" (Neturl.string_of_url url)
   | List xs -> Printf.sprintf "[%s]" (mold_list xs)
   | Num (Float f) -> string_of_float f
   | Num (Int i) -> string_of_int i
@@ -223,12 +226,12 @@ let bool_of_cell = function
 let char_of_cell = function
   | Char x -> x
   | x -> raise (Not_a_char x)
-(*
+
 (* file coercion *)
 let file_of_cell = function
   | Filespec (File f) -> f
   | x -> raise (Not_a_file x)
-*)
+
 (* float coercion *)
 let float_of_cell = function
   | Num (Float x) -> x
@@ -254,7 +257,6 @@ let list_of_cell = function
 let num_of_cell = function
   | Num x -> x
   | x -> raise (Not_a_number x)
-
 (*
 (* output channel coercion *)
 let out_chan_of_cell = function
@@ -267,12 +269,12 @@ let pair_of_cell = function
   | Pair (a,b) -> a,b
   | x -> raise (Not_a_pair x)
 *)
-(*
+
 (* spec coercion *)
 let spec_of_cell = function
   | Filespec x -> x
   | x -> raise (Not_a_spec x)
-*)
+
 (* string coercion *)
 let string_of_cell = function
   | Str x -> x
@@ -282,17 +284,18 @@ let string_of_cell = function
 let thread_of_cell = function
   | Pid (thread,pinfo) -> thread,pinfo
   | x -> raise (Not_a_process x)
-(*
+
 (* url coercion *)
 let url_of_cell = function
   | Filespec (Url url) -> url
   | x -> raise (Not_a_url x)
-*)
+
 (* compare function *)
 let rec compare_cell = function
   | Atom a -> fun b -> Atom.compare a (atom_of_cell b)
   | Bool a -> fun b -> compare a (bool_of_cell b)
   | Char a -> fun b -> compare a (char_of_cell b)
+  | Filespec a -> fun b -> compare_spec a (spec_of_cell b)
   | List a -> fun b -> compare_list a (list_of_cell b)
   | Num a -> fun b -> compare_num a (num_of_cell b)
   | Str a -> fun b -> compare a (string_of_cell b)

@@ -23,8 +23,8 @@ let lexer =
   { comment_start  = string "("
   ; comment_end    = string ")"
   ; comment_line   = string "--"
-  ; ident_start    = letter <|> one_of "!@*&/+=<>?,.-;:"
-  ; ident_letter   = alphanum <|> one_of "!@*&/+=<>?,.-;:"
+  ; ident_start    = letter <|> one_of "~!@*&/+=<>?,.-;:"
+  ; ident_letter   = alphanum <|> one_of "~!@*&/+=<>?,.-;:"
   ; op_start       = one_of "[]{}"
   ; op_letter      = pzero
   ; reserved_names = [ "in"

@@ -41,6 +41,7 @@ SOURCES= \
   cell \
   compiler \
   interp \
+  terminal \
   core \
   prims \
   main

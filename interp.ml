@@ -12,18 +12,38 @@ open Compiler
 exception Return of Cell.st
 exception Stack_underflow
 
+(* file-in source *)
+let rec file_in f =
+  let chan = open_in_bin f in
+  try
+    let len = in_channel_length chan in
+    let s = String.create len in
+    really_input chan s 0 len;
+    close_in chan;
+    s
+  with e -> close_in chan; raise e
+
 (* parse and interpret a string *)
-let rec eval st src = 
+and eval st src = 
   let xs,st' = compile st src in interp st' xs
 
 (* interpret a list of tokens *)
 and interp st = List.fold_left execute st
+
+(* push a cell onto the stack *)
+and push st x = { st with stack=x::st.stack }
 
 (* pop a single value from the stack *)
 and pop st = 
   match st.stack with
       x::xs -> x,{ st with stack=xs }
     | [] -> raise Stack_underflow
+
+(* pop the top value and map it into a function, push the result *)
+and fmap f st =
+  match st.stack with
+      x::xs -> { st with stack=f x::xs }
+    | _ -> raise Stack_underflow
 
 (* apply a block *)
 and apply st x =
