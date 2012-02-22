@@ -13,6 +13,7 @@ open Atom
 
 exception Parse_error
 exception Syntax_error of string
+exception Unbound_symbol of string
 
 (* compiled parse token *)
 type tok =
@@ -24,11 +25,11 @@ let lexer =
   { comment_start  = string "("
   ; comment_end    = string ")"
   ; comment_line   = string "--"
-  ; ident_start    = letter <|> one_of "!@*&/+=<>?,.-;"
-  ; ident_letter   = alphanum <|> one_of "!@*&/+=<>?,.-;"
+  ; ident_start    = letter <|> one_of "!@*&/+=<>?,.-;:"
+  ; ident_letter   = alphanum <|> one_of "!@*&/+=<>?,.-;:"
   ; op_start       = one_of "[]{}"
   ; op_letter      = pzero
-  ; reserved_names = [ "let"
+  ; reserved_names = [ ":"
                      ; "with"
                      ; "->"
                      ; ";"
@@ -60,7 +61,7 @@ let lexer =
 
 (* parse a single token *)
 let token = 
-  choose [ reserved lexer "let" >> return (Kwd "let")
+  choose [ reserved lexer ":" >> return (Kwd ":")
          ; reserved lexer "with" >> return (Kwd "with")
          ; reserved lexer "->" >> return (Kwd "->")
          ; reserved lexer ";" >> return (Kwd ";")
@@ -95,19 +96,36 @@ let token =
 (* convert a string to a list of tokens *)
 let tokenize = parse (between (whitespace lexer) eof (many token))
 
+(* define a new word in the top library *)
+let bind st s xs =
+  let def = 
+    { Cell.def=Cell.Colon xs 
+    } 
+  in
+  { st with Cell.env=IntMap.add (intern s).Atom.i def st.Cell.env }
+
+(* lookup a word in the dictionary *)
+let find st ps s =
+  try
+    if List.mem s ps
+    then Cell.Local s
+    else Cell.Word (s,IntMap.find s.Atom.i st.Cell.env)
+  with Not_found -> raise (Unbound_symbol s.Atom.name)
+
 (* parse a program of bindings and executable tokens *)
-let rec prog = parser
-  | [< 'Kwd "let"; 'Ident s; xs=body; bs=prog >] -> Let (intern s,xs)::bs
-  | [< 'Kwd "with"; ps=locals; xs=body; bs=prog >] -> XT (Cell.With (ps,xs))::bs
-  | [< x=factor; xs=prog >] -> XT x::xs
+let rec prog st = parser
+  | [< 'Kwd ":"; 'Ident s; xs=body st []; xs,st'=prog (bind st s xs) >] -> xs,st'
+  | [< 'Kwd "with"; ps=locals; xs=body st ps; xs',st'=prog st >] -> 
+    Cell.With (ps,xs)::xs',st'
+  | [< x=factor st []; xs,st'=prog st >] -> x::xs,st'
   | [< 'Kwd s >] -> raise (Syntax_error s)
-  | [< >] -> []
+  | [< >] -> [],st
 
 (* lexical frame *)
-and body = parser
+and body st ps = parser
   | [< 'Kwd ";" >] -> []
-  | [< 'Kwd "with"; ps=locals; xs=body >] -> [Cell.With (ps,xs)]
-  | [< x=factor; xs=body >] -> x::xs
+  | [< 'Kwd "with"; ps'=locals; xs=body st (ps' @ ps) >] -> [Cell.With (ps',xs)]
+  | [< x=factor st ps; xs=body st ps >] -> x::xs
   | [< >] -> []
 
 (* local bindings *)
@@ -116,75 +134,75 @@ and locals = parser
   | [< 'Ident p; ps=locals >] -> ps @ [intern p]
 
 (* body factor *)
-and factor = parser
+and factor st ps = parser
   | [< 'Kwd "exit" >] -> Cell.Exit
-  | [< xt=branch >] -> xt
-  | [< xt=xt >] -> xt
+  | [< xt=branch st ps >] -> xt
+  | [< xt=xt st ps >] -> xt
 
 (* conditionals and loops *)
-and branch = parser
-  | [< 'Kwd "if"; (ts,es)=if_else_then >] -> Cell.If (ts,es)
-  | [< 'Kwd "for"; xs=for_loop >] -> Cell.For xs
-  | [< 'Kwd "each"; xs=for_loop >] -> Cell.Each xs
-  | [< 'Kwd "begin"; xt=begin_loop [] >] -> xt
+and branch st ps = parser
+  | [< 'Kwd "if"; (ts,es)=if_else_then st ps >] -> Cell.If (ts,es)
+  | [< 'Kwd "for"; xs=for_loop st ps >] -> Cell.For xs
+  | [< 'Kwd "each"; xs=for_loop st ps >] -> Cell.Each xs
+  | [< 'Kwd "begin"; xt=begin_loop st ps [] >] -> xt
 
 (* if .. else/then *)
-and if_else_then = parser
-  | [< 'Kwd "else"; es=else_then >] -> ([],es)
+and if_else_then st ps = parser
+  | [< 'Kwd "else"; es=else_then st ps >] -> ([],es)
   | [< 'Kwd "then" >] -> ([],[])
-  | [< x=factor; (ts,es)=if_else_then >] -> (x::ts,es)
+  | [< x=factor st ps; (ts,es)=if_else_then st ps >] -> (x::ts,es)
 
 (* else .. then *)
-and else_then = parser
+and else_then st ps = parser
   | [< 'Kwd "then" >] -> []
-  | [< x=factor; xs=else_then >] -> x::xs
+  | [< x=factor st ps; xs=else_then st ps >] -> x::xs
 
 (* for/each .. next *)
-and for_loop = parser
+and for_loop st ps = parser
   | [< 'Kwd "next" >] -> []
-  | [< x=factor; xs=for_loop >] -> x::xs
+  | [< x=factor st ps; xs=for_loop st ps >] -> x::xs
 
 (* begin .. again/until/while *)
-and begin_loop xs = parser
+and begin_loop st ps xs = parser
   | [< 'Kwd "again" >] -> Cell.Loop xs
   | [< 'Kwd "until" >] -> Cell.Until xs
-  | [< 'Kwd "while"; es=while_repeat >] -> Cell.While (xs,es)
-  | [< x=factor; xt=begin_loop (xs @ [x])>] -> xt
+  | [< 'Kwd "while"; es=while_repeat st ps >] -> Cell.While (xs,es)
+  | [< x=factor st ps; xt=begin_loop st ps (xs @ [x])>] -> xt
 
 (* while .. repeat *)
-and while_repeat = parser
+and while_repeat st ps = parser
   | [< 'Kwd "repeat" >] -> []
-  | [< x=factor; xs=while_repeat >] -> x::xs
+  | [< x=factor st ps; xs=while_repeat st ps >] -> x::xs
 
 (* words and literals *)
-and xt = parser
-  | [< 'Ident s >] -> Cell.Word (intern s)
-  | [< x=literal >] -> Cell.Lit (x)
+and xt st ps = parser
+  | [< 'Ident s >] -> find st ps (intern s)
+  | [< x=literal st ps >] -> Cell.Lit (x)
 
 (* literal constant *)
-and literal = parser
+and literal st ps = parser
   | [< 'Kwd "true" >] -> Cell.Bool true
   | [< 'Kwd "false" >] -> Cell.Bool false
-  | [< 'Kwd "["; xs=list >] -> Cell.List xs
-  | [< 'Kwd "{"; xs=block >] -> Cell.Block ([],xs)
+  | [< 'Kwd "["; xs=list st ps >] -> Cell.List xs
+  | [< 'Kwd "{"; xs=block st ps >] -> Cell.Block ([],xs)
   | [< 'Float f >] -> Cell.Num (Cell.Float f)
   | [< 'Int i >] -> Cell.Num (Cell.Int i)
   | [< 'String s >] -> Cell.Str s
   | [< 'Char c >] -> Cell.Char c
 
 (* list literal *)
-and list = parser
+and list st ps = parser
   | [< 'Kwd "]" >] -> []
-  | [< x=literal; xs=list >] -> x::xs
+  | [< x=literal st ps; xs=list st ps >] -> x::xs
 
 (* block literal *)
-and block = parser
+and block st ps = parser
   | [< 'Kwd "}" >] -> []
-  | [< x=factor; xs=block >] -> x::xs
+  | [< x=factor st ps; xs=block st ps >] -> x::xs
 
 (* compile a string and create a list of executable tokens *)
 let compile st s =
   match tokenize s with
-      Some (tokens,_) -> prog (Stream.of_list tokens)
+      Some (tokens,_) -> prog st (Stream.of_list tokens)
     | None -> raise Parse_error
 

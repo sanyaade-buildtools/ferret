@@ -26,7 +26,9 @@ OCAMLNET=equeue netstring netsys netclient smtp
 # ----------------------------------------------------------------------------
 # compiler and linker options
 
-OPTS=-thread -package "$(OCAMLNET)" -linkpkg -ccopt -O2 -inline 3
+PKGS=-package "$(OCAMLNET)"
+LINK=-linkpkg -inline 3 -ccopt -O2
+OPTS=-pp camlp4o -thread
 
 # ----------------------------------------------------------------------------
 # input module files
@@ -35,21 +37,21 @@ SOURCES= \
   parsec \
   lexer \
   atom \
-  word \
   mvar \
   cell \
-  reader \
+  compiler \
   interp \
   core \
-  process \
-  math \
-  series \
-  io \
-  strings \
-  time \
   prims \
-  term \
-  main \
+  main
+#  core \
+#  process \
+#  math \
+#  series \
+#  io \
+#  strings \
+#  time \
+#  prims \
 
 # ----------------------------------------------------------------------------
 # source files with proper extensions added
@@ -76,11 +78,11 @@ clean:
 # ----------------------------------------------------------------------------
 # build rules
 
-$(OUT):		.depend $(ML)
-		$(OCAMLFIND) $(OCAMLOPT) $(OPTS) $(ML) -o $(OUT)
+$(OUT):		$(ML)
+		$(OCAMLFIND) $(OCAMLOPT) $(OPTS) $(PKGS) $(LINK) $(ML) -o $(OUT)
 
-$(TOP):		.depend $(ML)
-		$(OCAMLFIND) $(OCAMLMKTOP) $(OPTS) $(ML) -o $(TOP)
+$(TOP):		$(ML)
+		$(OCAMLFIND) $(OCAMLMKTOP) $(OPTS) $(PKGS) $(ML) -o $(TOP)
 
 %.mli:		%.ml
 		$(OCAMLFIND) $(OCAMLOPT) $(OPTS) $(PKGS) -c -i $< > $@

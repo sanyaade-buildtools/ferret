@@ -36,7 +36,7 @@ let return x = function
   | None -> None
 
 (* attempt to parse a source string with a parse combinator *)
-let parse s p =
+let parse p s =
   try
     match p (Some { source=s; pos=0; line=1 }) with
         Some (x,st') -> Some (x,st')

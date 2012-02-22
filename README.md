@@ -2,36 +2,52 @@
 
 ## Introduction
 
-Ferret is a symbolic language with roots in Lisp and other functional languages. It shamelessly shares the syntactic characteristics of REBOL, and a few concepts, but that's where the similarity ends.
+Ferret is a functional, concatenative, symbolic language with roots in Forth, Haskell, and Erlang. It's 100% interpreted, but extremely fast. The most distinctive characteristic of Ferret is that it is a transactional language. This means that an entire block succeeds or the entire VM rolls back to its last, previously known, good state. In addition to being transactional, Ferret also supports the following features:
 
-Ferret is a pure interpreter. There is no bytecode and no compile step. Yet, it is remarkably fast. The goal of Ferret is to allow extremely fast prototyping and creation of useful tools without the hassle of a build step. 
-
-Ferret attempts to be extremely high-level and trivialize many internet-based operations like sending emails, loading URLs, etc. It also means to be extremely reflective. Inspecting a value produces readable strings that can be used to load the object again. This means that code is data and can be loaded/saved trivially.
+* Atoms (symbols)
+* Light weight processes
+* Actor messaging between processes
+* Forth-like loops and conditionals
+* Block closures 
 
 ## What Does Ferret Look Like?
 
 Here are some simple examples of Ferret in action:
 
-	print "Hello, world!"
+	"Hello, world!" puts
 
-Doubling a list of numbers:
+Mapping a block closure over a list of items:
 
-	map (fn [x] [x * 2]) [1 2 3]
+	[1 2 3] {1 +} map
 
-Apply a function to a list of arguments:
+Define functions with block closures:
 
-	apply :+ [1 2]
+	: curry ( x xt -- xt' ) with x block -> {x block apply} ;
+	: compose ( xt xt -- xt' ) with a b -> {a apply b apply } ;
 
-Making a mutable objet context:
+Example test script:
 
-	user: make object [
-		name: "riak"
-		address: email "riak@basho.com"
-	]
+	clone vm "ubuntu 11.04 64-bit" as node_1
+	clone vm "ubuntu 11.04 64-bit" as node_2
 
-Loading and executing remote code:
+	with node_1
+		install "riak 1.1"
+		start riak
+	end
 
-	load url "http://www.mysite.com/games/guess.fsh"
+	with node_2
+		install "riak 1.1"
+		start riak
+		join node_1
+		stop riak    # want to test handoffs
+	end
 
+	with node_1
+		put random data
+	end
 
+	with node_2
+		start riak
+	end
 
+	# something here to test handoffs

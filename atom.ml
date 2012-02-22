@@ -14,6 +14,9 @@ type t = { name : string
 (* alias for AtomMap *)
 type atom = t
 
+(* use integers for mapping instead of atoms *)
+module IntMap = Map.Make(struct type t = int let compare = compare end)
+
 (* the one and only symbol table and current gensym counter *)
 let symbols = Hashtbl.create 400
 let gensym = ref 0

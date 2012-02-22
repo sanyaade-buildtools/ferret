@@ -11,9 +11,6 @@ open Parsec
 (* function that accepts a parser and returns a value *)
 type 'a parse_combinator = parse_stream option -> 'a parse_state
 
-(* when parsing numbers *)
-type number = Float of float | Int of int
-
 (* language lexer definition *)
 type lexer = { comment_start  : string parse_combinator
              ; comment_end    : string parse_combinator
@@ -133,9 +130,11 @@ let real =
 
 (* parse a real or natural *)
 let real_or_natural l =
-  lexeme l (choose [ real >>= (fun f -> return (Float f))
-                   ; natural >>= (fun i -> return (Int i))
-                   ])
+  let num = choose [ real >>= (fun f -> return (Genlex.Float f))
+                   ; natural >>= (fun i -> return (Genlex.Int i))
+                   ]
+  in
+  lexeme l (num >>= fun x -> not_followed_by l.ident_start >> return x)
 
 (* parse combinator between two guarded combinators *)
 let guarded l gopen gclose p = 

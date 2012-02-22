@@ -9,34 +9,27 @@
 open Cell
 
 (* leave ferret *)
-let prim_bye st xs = exit 0
+let prim_bye st = exit 0
 
 (* primitives *)
 let prims =
   [ ("bye",prim_bye)
 
     (* core prims *)
-  ; ("fn",Core.prim_fn)
-  ; ("var",Core.prim_var)
-  ; ("let",Core.prim_let)
-  ; ("return",Core.prim_return)
-  ; ("make",Core.prim_make)
+  ; ("abort",Core.prim_abort)
+  ; ("clear",Core.prim_clear)
+  ; ("dup",Core.prim_dup)
+  ; ("drop",Core.prim_drop)
+  ; ("swap",Core.prim_swap)
+  ; ("over",Core.prim_over)
+  ; ("push",Core.prim_push)
+  ; ("pop",Core.prim_pop)
   ; ("get",Core.prim_get)
-  ; ("set",Core.prim_set)
-  ; ("fail",Core.prim_fail)
-  ; ("if",Core.prim_if)
-  ; ("while",Core.prim_while true)
-  ; ("until",Core.prim_while false)
-  ; ("not",Core.prim_not)
-  ; ("and",Core.prim_and)
-  ; ("or",Core.prim_or)
+  ; ("put",Core.prim_put)
   ; ("apply",Core.prim_apply)
   ; ("do",Core.prim_do)
-  ; ("try",Core.prim_try)
-  ; ("forever",Core.prim_forever)
-  ; ("for",Core.prim_for)
-  ; ("foreach",Core.prim_foreach)
-
+  ; ("lift",Core.prim_lift)
+(*
     (* process prims *)
   ; ("spawn",Process.prim_spawn)
   ; ("self",Process.prim_self)
@@ -136,15 +129,6 @@ let prims =
   ; ("toupper",Strings.prim_uppercase)
   ; ("tolower",Strings.prim_lowercase)
   ; ("sub",Strings.prim_sub)
+*)
   ]
-
-(* create a dynamic environment from the list of prims *)
-let prim_env =
-  let env = Hashtbl.create 100 in
-  let bind (s,p) =
-    let f = Atom.intern s in
-    Hashtbl.replace env f.Atom.i (Cell.Proc (Cell.Prim (f,p)))
-  in
-  List.iter bind prims;
-  env
 

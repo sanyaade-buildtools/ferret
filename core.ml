@@ -9,164 +9,82 @@
 open Cell
 open Interp
 
-exception ArityMismatch of Cell.t list
-exception Fail of Cell.t
-
-(* create a closure *)
-let prim_fn st xs =
-  let (args,xs') = coerce list_of_cell (reduce1 st xs) in
-  let (block,xs') = coerce list_of_cell (reduce1 st xs') in
-  Proc (Closure (st.stack,List.map sym_of_cell args,block)),xs'
-
-(* create a variable from a word *)
-let prim_var st xs =
-  let (s,xs') = coerce sym_of_cell (reduce1 st xs) in
-  Word (Word.Var s),xs'
-
-(* create a new lexical scope *)
-let prim_let st xs =
-  let (vars,xs') = coerce list_of_cell (reduce1 st xs) in
-  let (block,xs') = coerce list_of_cell (reduce1 st xs') in
-  let rec bind env xs = 
-    if xs = []
-    then env
-    else begin
-      let (var,xs') = coerce var_of_cell (pop1 xs) in
-      let (x,xs') = reduce1 st xs' in
-      bind ((var.Atom.i,ref x)::env) xs'
-    end
-  in
-  interp { st with stack=bind st.stack vars } block,xs'
-
-(* return early from a function *)
-let prim_return st xs =
-  let (x,_) = reduce1 st xs in
-  raise (Return x)
+exception Abort of string
+exception Control_stack_underflow
 
 (* raise a failure assertion *)
-let prim_fail st xs =
-  let (x,_) = reduce1 st xs in
-  raise (Fail x)
+let prim_abort st =
+  let (s,_) = coerce string_of_cell (pop st) in raise (Abort s)
 
-(* clone a new prototype and bind values to it *)
-let prim_make st xs =
-  let (proto,xs') = coerce obj_of_cell (reduce1 st xs) in
-  let (vars,xs') = coerce list_of_cell (reduce1 st xs') in
-  let rec bind map xs =
-    if xs = []
-    then map
-    else begin
-      let (var,xs') = coerce var_of_cell (pop1 xs) in
-      let (x,xs') = reduce1 st xs' in
-      bind (Atom.AtomMap.add var x map) xs'
-    end
-  in
-  Obj (ref (bind !proto vars)),xs'
+(* clear the stacks *)
+let prim_clear st =
+  { st with stack=[]; cs=[] }
 
-(* extract an binding from an object *)
-let prim_get st xs =
-  let (obj,xs') = coerce obj_of_cell (reduce1 st xs) in
-  let (slot,xs') = coerce sym_of_cell (reduce1 st xs') in
-  try
-    Atom.AtomMap.find slot !obj,xs'
-  with Not_found -> Undef,xs'
+(* remove the top stack item *)
+let prim_drop st = 
+  match st.stack with
+      x::xs -> { st with stack=xs }
+    | _ -> raise Stack_underflow
 
-(* redefine a binding for an object *)
-let prim_set st xs =
-  let (obj,xs') = coerce obj_of_cell (reduce1 st xs) in
-  let (slot,xs') = coerce sym_of_cell (reduce1 st xs') in
-  let (x,xs') = reduce1 st xs' in
-  obj := Atom.AtomMap.add slot x !obj;
-  x,xs'
+(* duplicate the top stack item *)
+let prim_dup st =
+  match st.stack with
+      x::xs -> { st with stack=x::x::xs }
+    | _ -> raise Stack_underflow
 
-(* conditional branch *)
-let prim_if st xs =
-  let (flag,xs') = coerce bool_of_cell (reduce1 st xs) in
-  let (ts,xs') = coerce list_of_cell (reduce1 st xs') in
-  let (es,xs') = coerce list_of_cell (reduce1 st xs') in
-  interp st (if flag then ts else es),xs'
+(* swap the top two stack items *)
+let prim_swap st =
+  match st.stack with
+      a::b::xs -> { st with stack=b::a::xs }
+    | _ -> raise Stack_underflow
 
-(* simple while loop *)
-let prim_while f st xs =
-  let (test,xs') = coerce list_of_cell (reduce1 st xs) in
-  let (block,xs') = coerce list_of_cell (reduce1 st xs') in
-  while bool_of_cell (interp st test) = f do
-    ignore (interp st block)
-  done;
-  Undef,xs'
+(* duplicate the second stack item *)
+let prim_over st =
+  match st.stack with
+      a::b::xs -> { st with stack=b::a::b::xs }
+    | _ -> raise Stack_underflow
 
-(* inverse of a boolean *)
-let prim_not st xs =
-  let (b,xs') = coerce bool_of_cell (reduce1 st xs) in
-  Bool (not b),xs'
+(* push the top of the stack to the control stack *)
+let prim_push st =
+  match st.stack with
+      x::xs -> { st with stack=xs; cs=x::st.cs }
+    | _ -> raise Stack_underflow
 
-(* logical and *)
-let prim_and st xs =
-  let (lval,xs') = coerce bool_of_cell (reduce1 st xs) in
-  let (rval,xs') = coerce bool_of_cell (reduce1 st xs') in
-  Bool (lval && rval),xs'
+(* pop the top of the control stack *)
+let prim_pop st =
+  match st.cs with
+      c::cs -> { st with stack=c::st.stack; cs=cs }
+    | _ -> raise Control_stack_underflow
 
-(* logical or *)
-let prim_or st xs =
-  let (lval,xs') = coerce bool_of_cell (reduce1 st xs) in
-  let (rval,xs') = coerce bool_of_cell (reduce1 st xs') in
-  Bool (lval || rval),xs'
+(* get the top of the control stack *)
+let prim_get st =
+  match st.cs with
+      c::cs -> { st with stack=c::st.stack }
+    | _ -> raise Control_stack_underflow
 
-(* apply a function with arguments in a block *)
-let prim_apply st xs =
-  let (f,xs') = coerce proc_of_cell (reduce1 st xs) in
-  let (args,xs') = coerce list_of_cell (reduce1 st xs') in
-  match call st args f with
-      (x,[]) -> x,xs'
-    | (_,xs) -> raise (ArityMismatch xs)
+(* replace the top of the control stack *)
+let prim_put st =
+  match st.stack,st.cs with
+      (x::xs,c::cs) -> { st with stack=xs; cs=x::cs }
+    | ([],_) -> raise Stack_underflow
+    | (_,[]) -> raise Control_stack_underflow
 
 (* apply a block *)
-let prim_do st xs =
-  let (block,xs') = coerce list_of_cell (reduce1 st xs) in
-  interp st block,xs'
+let prim_apply st =
+  match st.stack with
+      b::xs -> apply { st with stack=xs } b
+    | _ -> raise Stack_underflow
 
-(* try and apply a block *)
-let prim_try st xs =
-  let (block,xs') = coerce list_of_cell (reduce1 st xs) in
-  let (err,xs') = coerce list_of_cell (reduce1 st xs') in
-  try
-    interp st block,xs'
-  with _ -> interp st err,xs'
+(* push to control stack, apply block, pop control stack *)
+let prim_do st =
+  match st.stack with
+      b::x::xs -> apply { st with stack=xs; cs=x::st.cs } b
+    | _ -> raise Stack_underflow
 
-(* execute a block forever *)
-let prim_forever st xs =
-  let (block,xs') = coerce list_of_cell (reduce1 st xs) in
-  while true do
-    ignore (interp st block)
-  done;
-  Undef,xs'
-
-(* functional for loop iterator *)
-let prim_for st xs =
-  let (i,xs') = coerce sym_of_cell (pop1 xs) in
-  let (count,xs') = coerce int_of_cell (reduce1 st xs') in
-  let (block,xs') = coerce list_of_cell (reduce1 st xs') in
-  let i' = ref Undef in
-  let x' = ref Undef in
-  let st' = { st with stack=(i.Atom.i,i')::st.stack } in 
-  for n = 0 to count - 1 do
-    i' := Num (Int n);
-    x' := interp st' block
-  done;
-  !x',xs'
-
-(* functional list iterator *)
-let prim_foreach st xs =
-  let (i,xs') = coerce sym_of_cell (pop1 xs) in
-  let (list,xs') = coerce list_of_cell (reduce1 st xs') in
-  let (block,xs') = coerce list_of_cell (reduce1 st xs') in
-  let i' = ref Undef in
-  let x' = ref Undef in
-  let st' = { st with stack=(i.Atom.i,i')::st.stack } in 
-  let f x = 
-    i' := x;
-    x' := interp st' block
-  in
-  List.iter f list;
-  !x',xs'
+(* lift a block into the control stack and apply it *)
+let prim_lift st =
+  match st.stack,st.cs with
+      (b::xs,c::cs) -> { apply { st with stack=xs; cs=cs } b with cs=st.cs }
+    | ([],_) -> raise Stack_underflow
+    | (_,[]) -> raise Control_stack_underflow
 

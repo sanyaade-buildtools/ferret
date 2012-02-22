@@ -6,32 +6,54 @@
  * main.ml
  *)
 
-open Term
 open Interp
 
-(* the last returned value *)
-let it = Atom.intern "it"
+(* terminal ansi colors *)
+let red = "\x1b[31m"
+let green = "\x1b[32m"
+let yellow = "\x1b[33m"
+let blue = "\x1b[34m"
+let magenta = "\x1b[35m"
+let cyan = "\x1b[36m"
+let gray = "\x1b[37m"
+let clear = "\x1b[0m"
+
+(* ready the terminal to handle interrupts *)
+let setup_term () =
+  Sys.interactive := true;
+  Sys.catch_break true
+
+(* display the ok prompt *)
+let show_ok () = Printf.printf "  %sok%s\n" cyan clear
 
 (* print the output of a value *)
-let show = function
-  | Cell.Undef -> Printf.printf "  %sok%s\n" cyan clear
-  | x -> Printf.printf "%s==%s %s\n" green clear (Cell.mold x)
+let show_top stack = 
+  let show x = Printf.sprintf "%s==%s %s" green clear (Cell.mold x) in 
+  let rest xs = Printf.sprintf "%s (+ %d)%s" yellow (List.length xs) clear in
+  match stack with
+      [] -> show_ok ()
+    | [x] -> Printf.printf "%s\n" (show x)
+    | x::xs -> Printf.printf "%s%s\n" (show x) (rest xs)
+
+(* print an exception to stderr *)
+let show_err = function
+  | Sys.Break -> Printf.printf "\n%s** Interrupt!%s\n" red clear
+  | e -> Printf.printf "%s** %s%s\n" red (Printexc.to_string e) clear
 
 (* read-eval-print loop *)
 let rec repl st =
   try
+    let st = ref st in
     while true do
       try
-        let x = eval st (read_line ()) in
-        bind st it x;
-        show x
+        st := eval !st (read_line ());
+        show_top (!st).Cell.stack;
       with 
-          Sys.Break -> Printf.printf "\n** %sInterrupt!%s\n" red clear
-        | End_of_file -> raise End_of_file
-        | e -> Printf.printf "%s** %s%s\n" red (Printexc.to_string e) clear;
+          End_of_file -> raise End_of_file
+        | e -> show_err e
     done
   with End_of_file -> ()
-
+(*
 (* load all the external library files *)
 let load_ext_libs st =
   List.iter (import st) [ "lib/core.ferret"
@@ -39,23 +61,21 @@ let load_ext_libs st =
                         ; "lib/math.ferret"
                         ; "lib/io.ferret"
                         ]
-
+*)
 (* display the message of the day *)
 let motd () =
   let copy = "copyright (c) 2012 by jeffrey massung" in
   let rights = "all rights reserved" in
   let help = "use ctrl-c to interrupt and ctrl-d to quit" in
-  Printf.printf "%sferret 0.4, %s, %s%s\n%s\n" cyan copy rights clear help
+  Printf.printf "%sferret 0.6, %s, %s%s\n%s\n" cyan copy rights clear help
 
 (* main *)
 let _ =
-  let st = Cell.new_thread Prims.prim_env in
+  let st = Cell.new_thread Prims.prims in
   setup_term ();
-  Process.install_kill_signal ();
+  (*Process.install_kill_signal ();*)
   Random.self_init ();
   motd ();
-  bind st it Cell.Undef;
-  load_ext_libs st;
-  show Cell.Undef;
+  show_ok ();
   repl st 
 
