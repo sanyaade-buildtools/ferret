@@ -130,7 +130,7 @@ let run_thread st block =
   with e -> Mvar.put st.pinfo.status (Terminated e)
 
 (* start a spawned thread running in a child process *)
-let fork_thread st block =
+let fork_thread st (env,xts) =
   let st' = spawn_thread st in
-  Pid ((Thread.create (run_thread st') block),st'.pinfo)
+  Pid (Thread.create (run_thread { st' with locals=env }) xts,st'.pinfo)
 

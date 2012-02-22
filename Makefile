@@ -44,14 +44,6 @@ SOURCES= \
   core \
   prims \
   main
-#  core \
-#  process \
-#  math \
-#  series \
-#  io \
-#  strings \
-#  time \
-#  prims \
 
 # ----------------------------------------------------------------------------
 # source files with proper extensions added

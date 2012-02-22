@@ -82,7 +82,6 @@ and process_info =
     { mb     : t Queue.t
     ; status : process_result Mvar.t
     ; lock   : Mutex.t
-    ; full   : Condition.t
     }
 
 (* corouting result *)
@@ -117,7 +116,6 @@ let new_process () =
   { mb=Queue.create ()
   ; status=Mvar.empty ()
   ; lock=Mutex.create ()
-  ; full=Condition.create ()
   }
 
 (* create a new thread state *)
@@ -269,10 +267,6 @@ let pair_of_cell = function
   | Pair (a,b) -> a,b
   | x -> raise (Not_a_pair x)
 *)
-(* thread coercion *)
-let pid_of_cell = function
-  | Pid (thread,pinfo) -> thread,pinfo
-  | x -> raise (Not_a_process x)
 (*
 (* spec coercion *)
 let spec_of_cell = function
@@ -283,6 +277,11 @@ let spec_of_cell = function
 let string_of_cell = function
   | Str x -> x
   | x -> raise (Not_a_string x)
+
+(* thread coercion *)
+let thread_of_cell = function
+  | Pid (thread,pinfo) -> thread,pinfo
+  | x -> raise (Not_a_process x)
 (*
 (* url coercion *)
 let url_of_cell = function

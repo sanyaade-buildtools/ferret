@@ -8,6 +8,21 @@
 
 open Interp
 
+exception Kill
+
+(* on every context switch, see if the process is being killed *)
+let install_kill_signal () =
+  let force_interrupt _ =
+    let self = Thread.id (Thread.self ()) in
+    if Some self = !(Core.kill_sig) then raise Kill
+  in
+  let platform_signal =
+    match Sys.os_type with
+        "Win32" -> Sys.sigterm
+      | _ -> Sys.sigvtalrm
+  in
+  ignore (Sys.signal platform_signal (Sys.Signal_handle force_interrupt))
+
 (* terminal ansi colors *)
 let red = "\x1b[31m"
 let green = "\x1b[32m"
@@ -73,7 +88,7 @@ let motd () =
 let _ =
   let st = Cell.new_thread Prims.prims in
   setup_term ();
-  (*Process.install_kill_signal ();*)
+  install_kill_signal ();
   Random.self_init ();
   motd ();
   show_ok ();
