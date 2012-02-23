@@ -100,7 +100,8 @@ let prim_try st =
 (* push to control stack, apply block, pop control stack *)
 let prim_do st =
   match st.stack with
-      b::x::xs -> apply { st with stack=xs; cs=x::st.cs } b
+      b::x::xs -> let st' = apply { st with stack=xs; cs=x::st.cs } b in
+                  { st' with stack=List.hd st'.cs::st'.stack; cs=List.tl st'.cs }
     | _ -> raise Stack_underflow
 
 (* lift a block into the control stack and apply it *)
@@ -433,6 +434,18 @@ let prim_uniform st = push st (Num (Float (Random.float 1.0)))
 let prim_random st = (prim_unary_op Random.int Random.float) st
 let prim_choice st = push st (Bool (Random.bool ()))
 
+(* boolean not *)
+let prim_not st =
+  fmap (fun x -> Bool (not (bool_of_cell x))) st
+
+(* boolean and *)
+let prim_and st =
+  prim_op (fun x y -> Bool ((bool_of_cell x) && (bool_of_cell y))) st
+
+(* boolean or *)
+let prim_or st =
+  prim_op (fun x y -> Bool ((bool_of_cell x) || (bool_of_cell y))) st
+  
 (* coerce a value to a string *)
 let prim_form st =
   match st.stack with

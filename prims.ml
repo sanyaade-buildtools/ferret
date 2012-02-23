@@ -112,6 +112,11 @@ let prims =
   ; ("random",Core.prim_random)
   ; ("choice",Core.prim_choice)
 
+    (* boolean operator prims *)
+  ; ("not",Core.prim_not)
+  ; ("and",Core.prim_and)
+  ; ("or",Core.prim_or)
+
     (* string prims *)
   ; ("form",Core.prim_form)
   ; ("&",Core.prim_strcat)

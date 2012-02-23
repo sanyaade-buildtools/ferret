@@ -1,0 +1,41 @@
+-- core.ferret
+--
+
+in Ext use Core ;
+
+-- identity function
+: id ( -- ) ;
+
+-- constant function
+: const ( x -- xt ) with x -> {drop x} ;
+
+-- equality function
+: is ( x -- xt ) with x -> {x =} ;
+
+-- currying
+: curry ( x xt -- xt ) with x block -> {x block apply} ;
+
+-- composing blocks
+: compose ( xt xt -- xt ) with a b -> {a apply b apply} ;
+
+-- assertion
+: ? ( bool -- ) not if "assertion failed" abort then ;
+
+-- type predicate
+: type? ( t -- xt ) {swap type = ?} curry ;
+
+-- type predicateas
+: atom? ( x -- ) type Atom = ? ;
+: block? ( x -- ) type Block = ? ;
+: bool? ( x -- ) type Bool = ? ;
+: char? ( x -- ) type Char = ? ;
+: file? ( x -- ) type File = ? ;
+: float? ( x -- ) type Float = ? ;
+: int? ( x -- ) type Int = ? ;
+: list? ( x -- ) type List = ? ;
+: pid? ( x -- ) type Pid = ? ;
+: string? ( x -- ) type String = ? ;
+: url? ( x -- ) type Url = ? ;
+
+-- apply a block n times
+: times ( xt n -- j*x ) swap {for get lift next} do drop ;
