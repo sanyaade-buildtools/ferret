@@ -56,6 +56,12 @@ let prim_over st =
       a::b::xs -> { st with stack=b::a::b::xs }
     | _ -> raise Stack_underflow
 
+(* drop the second stack item *)
+let prim_nip st =
+  match st.stack with
+      a::b::xs -> { st with stack=a::xs }
+    | _ -> raise Stack_underflow
+
 (* push the top of the stack to the control stack *)
 let prim_push st =
   match st.stack with
@@ -117,6 +123,25 @@ let prim_i st =
       None -> raise No_iterator
     | Some x -> { st with stack=x::st.stack }
 
+(* return the type of a cell *)
+let prim_type st =
+  let typeof = function
+    | Atom _ -> "Atom"
+    | Block (_,_) -> "Block"
+    | Bool _ -> "Bool"
+    | Char _ -> "Char"
+    | Filespec (File _) -> "File"
+    | Filespec (Url _) -> "Url"
+    | List _ -> "List"
+    | Num (Float _) -> "Float"
+    | Num (Int _) -> "Int"
+    | Pid (_,_) -> "Pid"
+    | Str _ -> "String"
+  in
+  match st.stack with
+      x::xs -> { st with stack=Atom (Atom.intern (typeof x))::xs }
+    | _ -> raise Stack_underflow
+
 (* insert a new element at the head of a list *)
 let prim_cons st =
   match st.stack with
@@ -162,9 +187,23 @@ let prim_tl st =
       _::x -> { st' with stack=List x::st'.stack }
     | _ -> raise Empty_list
 
+(* reduce a list *)
+let prim_foldl st =
+  let fold st xt xs =
+    List.fold_left (fun st x -> apply { st with stack=x::st.stack } xt) st xs
+  in
+  match st.stack with
+      xt::a::l::xs -> fold { st with stack=a::xs } xt (list_of_cell l)
+    | _ -> raise Stack_underflow
 
-
-
+(* reduce a list in reverse order *)
+let prim_foldr st =
+  let fold st xt xs =
+    List.fold_right (fun x st -> apply { st with stack=x::st.stack } xt) xs st
+  in
+  match st.stack with
+      xt::a::l::xs -> fold { st with stack=a::xs } xt (list_of_cell l)
+    | _ -> raise Stack_underflow
 
 (* spawn a new process *)
 let prim_spawn st =

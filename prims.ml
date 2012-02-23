@@ -19,19 +19,27 @@ let prims =
   ; ("modules",Core.prim_modules)
   ; ("abort",Core.prim_abort)
   ; ("clear",Core.prim_clear)
+  ; ("i",Core.prim_i)
+  ; ("type",Core.prim_type)
+
+    (* stack shuffling prims *)
   ; ("dup",Core.prim_dup)
   ; ("drop",Core.prim_drop)
   ; ("swap",Core.prim_swap)
   ; ("over",Core.prim_over)
+  ; ("nip",Core.prim_nip)
+
+    (* control stack prims *)
   ; ("push",Core.prim_push)
   ; ("pop",Core.prim_pop)
   ; ("get",Core.prim_get)
   ; ("put",Core.prim_put)
-  ; ("apply",Core.prim_apply)
-  ; ("try",Core.prim_try)
   ; ("do",Core.prim_do)
   ; ("lift",Core.prim_lift)
-  ; ("i",Core.prim_i)
+
+    (* block closure prims *)
+  ; ("apply",Core.prim_apply)
+  ; ("try",Core.prim_try)
 
     (* list prims *)
   ; (",",Core.prim_cons)
@@ -41,6 +49,8 @@ let prims =
   ; ("rev",Core.prim_rev)
   ; ("hd",Core.prim_hd)
   ; ("tl",Core.prim_tl)
+  ; ("foldl",Core.prim_foldl)
+  ; ("foldr",Core.prim_foldr)
 
   (*
     (* pair prims *)

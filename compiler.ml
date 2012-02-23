@@ -29,6 +29,7 @@ let lexer =
   ; op_letter      = pzero
   ; reserved_names = [ "in"
                      ; "use"
+                     ; "previous"
                      ; ":"
                      ; "with"
                      ; "->"
@@ -63,6 +64,7 @@ let lexer =
 let token = 
   choose [ reserved lexer "in" >> return (Kwd "in")
          ; reserved lexer "use" >> return (Kwd "use")
+         ; reserved lexer "previous" >> return (Kwd "previous")
          ; reserved lexer ":" >> return (Kwd ":")
          ; reserved lexer "with" >> return (Kwd "with")
          ; reserved lexer "->" >> return (Kwd "->")
@@ -117,7 +119,17 @@ let push st p =
   try shuffle st m with _ -> { st with Cell.env=(m,d)::st.Cell.env }
 
 (* shuffle loaded modules to the top of the dictionary *)
-let use st = List.fold_left (fun st m -> shuffle st (module_name m)) st
+let use st ms = 
+  let st' = List.fold_left (fun st m -> shuffle st (module_name m)) st ms in
+  match st.Cell.env with
+      (m,_)::ms -> shuffle st' m
+    | [] -> st'
+
+(* shuffle the previous module (if any) to the top of the dictionary *)
+let previous st =
+  match st.Cell.env with
+      a::b::xs -> { st with Cell.env=b::a::xs }
+    | _ -> st
 
 (* define a new word in the top library *)
 let bind st s xs =
@@ -145,6 +157,7 @@ let find st ps s =
 let rec prog st = parser
   | [< 'Kwd "in"; 'Ident s; xs,st'=prog (push st s) >] -> xs,st'
   | [< 'Kwd "use"; ms=modules; xs,st'=prog (use st ms) >] -> xs,st'
+  | [< 'Kwd "previous"; xs,st'=prog (previous st) >] -> xs,st'
   | [< 'Kwd ":"; 'Ident s; xs=body st []; xs,st'=prog (bind st s xs) >] -> xs,st'
   | [< 'Kwd "with"; ps=locals; xs=body st ps; xs',st'=prog st >] -> 
     Cell.With (ps,xs)::xs',st'

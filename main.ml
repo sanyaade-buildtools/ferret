@@ -27,6 +27,7 @@ let install_kill_signal () =
 (* read-eval-print loop *)
 let rec repl st =
   try
+    show_ok ();
     let st = ref st in
     while true do
       try
@@ -37,15 +38,13 @@ let rec repl st =
         | e -> show_err e
     done
   with End_of_file -> ()
-(*
+
 (* load all the external library files *)
 let load_ext_libs st =
-  List.iter (import st) [ "lib/core.ferret"
-                        ; "lib/lists.ferret"
-                        ; "lib/math.ferret"
-                        ; "lib/io.ferret"
-                        ]
-*)
+  let load st f = eval st (file_in f) in
+  List.fold_left load st [ "lib/ext.ferret"
+                         ]
+
 (* display the message of the day *)
 let motd () =
   let copy = "copyright (c) 2012 by jeffrey massung" in
@@ -60,6 +59,5 @@ let _ =
   install_kill_signal ();
   Random.self_init ();
   motd ();
-  show_ok ();
-  repl st 
+  repl (load_ext_libs st)
 

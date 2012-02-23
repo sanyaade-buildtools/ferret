@@ -46,8 +46,8 @@ and fmap f st =
     | _ -> raise Stack_underflow
 
 (* apply a block *)
-and apply st x =
-  let ps,xs = block_of_cell x in
+and apply st xt =
+  let ps,xs = block_of_cell xt in
   { interp { st with locals=ps } xs with locals=st.locals }
 
 (* execute a token *)

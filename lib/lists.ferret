@@ -1,162 +1,139 @@
-;; lists.ferret
-;;
+-- lists.ferret
+--
 
-;; create a list from a single item
-list: fn [x] [reduce [x]]
+in Lists use Ext ;
 
-;; create a list with an element repeated n times
-replicate: fn [n x] [
-  let [acc: []] [
-    for _ n [acc: x , acc] acc
-  ]
-]
+-- create a list from a single item
+: list ( x -- xs ) [] swap , ;
 
-;; apply a block n times and collect the results
-collect: fn [n block] [
-  let [acc: []] [
-    for _ n [acc: (do block) , acc] acc
-  ]
-]
+-- create a list with an element repeated n times
+: rep ( x n -- xs ) [] swap for over , next nip ;
 
-;; generate a list of numbers from [1..n]
-iota: fn [n] [
-  let [acc: []] [
-    for i n [acc: (n - i) , acc] acc
-  ]
-]
+-- apply a block n times and collect the results
+: collect ( xt n -- xs ) [] swap for over apply , next nip ;
 
-;; find the last element of a list
-last: fn [xs] [
-  foreach x xs [x]
-]
+-- generate a list of numbers from [1..n]
+: iota ( n -- xs ) [] swap for i 1 + , next ;
 
-;; true if all elements of xs match a predicate
+-- find the last element of a list
+: last ( xs -- x ) uncons swap each drop i next ;
+
+
+-- true if all elements of xs match a predicate
 all: fn [pred xs] [
   foreach x xs [if not pred x [return false]] true
 ]
 
-;; true if any element of xs matches a predicate
+-- true if any element of xs matches a predicate
 any: fn [pred xs] [
   foreach x xs [if pred x [return true]] false
 ]
 
-;; return the first element of a list to match a predicate
+-- return the first element of a list to match a predicate
 find: fn [pred xs] [
   foreach x xs [if pred x [return x]] none
 ]
 
-;; return true if any element of a list is x
+-- return true if any element of a list is x
 elem: fn [x xs] [
   any fn [i] [x = i] xs
 ]
 
-;; apply a function to every element of a list
-iter: fn [f xs] [
-  foreach x xs [f x]
-]
+-- apply a block for every element in a list
+: iter ( xs xt -- j*x ) with xt -> each i xt apply next ;
 
-;; aggregate a list from left -> right
-foldl: fn [f acc xs] [
-  foreach x xs [acc: f acc x]
-]
+-- concatenate two lists
+: append ( xs xs -- xs ) {,} foldr ;
 
-;; aggregate a list from right -> left
-foldr: fn [f acc xs] [
-  if null? xs [acc] [f (foldr :f acc tail xs) head xs]
-]
+-- join a list of lists
+: concat ( [xs] -- xs ) [] {append} foldl ; 
 
-;; append ys to xs, returning a new list
-append: fn [xs ys] [
-  foldr fn [acc x] [x , acc] ys xs
-]
+-- map a block across a list, collect the results
+: map ( xs xt -- xs ) {,} compose [] swap foldr ;
 
-;; join a list of lists together
-concat: fn [xs] [
-  foldl :append [] xs
-]
+-- delete elements from a list that do not match a predicate
+: filter ( xs pred -- xs ) with p -> [] {dup p apply if , else drop then} foldr ;
 
-;; map a function across a list
-map: fn [f xs] [
-  foldr fn [acc x] [(f x) , acc] [] xs
-]
 
-;; delete elements from a list that do not match a predicate
+
+
+-- delete elements from a list that do not match a predicate
 filter: fn [pred xs] [
   foldr fn [acc x] [if pred x [x , acc] [acc]] [] xs
 ]
 
-;; remove elements from a list that match a predicate
+-- remove elements from a list that match a predicate
 remove-if: fn [pred xs] [
   filter fn [x] [not pred x] xs
 ]
 
-;; remove exact copies of an element
+-- remove exact copies of an element
 remove: fn [x xs] [
   remove-if (is x) xs
 ]
 
-;; count how many times a predicate is matched
+-- count how many times a predicate is matched
 count-if: fn [pred xs] [
   foreach x n xs 0 [if pred x [n + 1] [n]]
 ]
 
-;; count how many times a specific element appears
+-- count how many times a specific element appears
 count: fn [x xs] [
   count-if (is x) xs
 ]
 
-;; zip the elements of two lists with a function
+-- zip the elements of two lists with a function
 zip-with: fn [f xs ys] [
   if (null? xs) `or` (null? ys) [[]] [
     (f head xs head ys) , (zip-with :f tail xs tail ys)
   ]
 ]
 
-;; zip elements of two lists with the pair function
+-- zip elements of two lists with the pair function
 zip: fn [xs ys] [
   zip-with :@ xs ys
 ]
 
-;; the inverse of zip
+-- the inverse of zip
 unzip: fn [xs] [
   foldr fn [a x] [((fst x) , (fst a)) @ ((snd x) , (snd a))] [] @ [] xs
 ]
 
-;; combine all the elements of two lists
+-- combine all the elements of two lists
 combine-with: fn [f xs ys] [
   foldr fn [ay y] [foldr fn [ax x] [(f x y) , ax] ay xs] [] ys
 ]
 
-;; combine elements of two lists with the pair function
+-- combine elements of two lists with the pair function
 combine: fn [xs ys] [
   combine-with :@ xs ys
 ]
 
-;; take the first n items from a list
+-- take the first n items from a list
 take: fn [n xs] [
   if (n < 1) `or` (null? xs) [[]] [
     (head xs) , (take n - 1 tail xs)
   ]
 ]
 
-;; keep taking elements while a predicate is true
+-- keep taking elements while a predicate is true
 take-while: fn [pred xs] [
   if (not pred head xs) `or` (null? xs) [[]] [
     (head xs) , (take-while :pred tail xs)
   ]
 ]
 
-;; remove the first n items from a list
+-- remove the first n items from a list
 drop: fn [n xs] [
   if (n < 1) `or` (null? xs) [xs] [drop (n - 1) tail xs]
 ]
 
-;; remove elements from a list while a predicate is true
+-- remove elements from a list while a predicate is true
 drop-while: fn [pred xs] [
   if (not pred head xs) `or` (null? xs) [xs] [drop :pred tail xs]
 ]
 
-;; partition a list at the first place a predicate fails
+-- partition a list at the first place a predicate fails
 split-when: fn [pred xs] [
   if (null? xs) `or` (pred head xs) [[] @ xs] [
     let [s: split-when :pred tail xs] [
@@ -165,7 +142,7 @@ split-when: fn [pred xs] [
   ]
 ]
 
-;; split a list at the given index
+-- split a list at the given index
 split-at: fn [n xs] [
   if (null? xs) `or` (n < 1) [[] @ xs] [
     let [s: split-at (n - 1) (tail xs)] [
@@ -174,48 +151,48 @@ split-at: fn [n xs] [
   ]
 ]
 
-;; remove the nth element from a list
+-- remove the nth element from a list
 delete-at: fn [n xs] [
   let [s: split-at n xs] [
     if null? snd s [fst s] [append fst s tail snd s]
   ]
 ]
 
-;; remove the first occurance of a true predicate from a lsit
+-- remove the first occurance of a true predicate from a lsit
 delete-if: fn [pred xs] [
   let [s: split-when :pred xs] [
     if null? snd s [fst s] [append fst s tail snd s]
   ]
 ]
 
-;; remove the first occurance of an element from a list
+-- remove the first occurance of an element from a list
 delete: fn [x xs] [
   delete-if (is x) xs
 ]
 
-;; remove all duplicates from a list
+-- remove all duplicates from a list
 nub: fn [xs] [
   if null? xs [[]] [
     let [x: head xs] [x , nub remove x tail xs]
   ]
 ]
 
-;; remove elements from xs that occur in ys
+-- remove elements from xs that occur in ys
 difference: fn [xs ys] [
   foldl fn [acc x] [delete x acc] xs ys
 ]
 
-;; keep elements of xs that occur in ys
+-- keep elements of xs that occur in ys
 intersect: fn [xs ys] [
   filter fn [x] [elem x ys] xs
 ]
 
-;; create a union set of xs and ys
+-- create a union set of xs and ys
 union: fn [xs ys] [
   nub append xs ys
 ]
 
-;; return a list of cons counting duplicates
+-- return a list of cons counting duplicates
 duplicates: fn [xs] [
   if null? xs [[]] [
     ;(let* ((x $ car xs)
@@ -224,12 +201,12 @@ duplicates: fn [xs] [
   ]
 ]
 
-;; find the best fit in a list
+-- find the best fit in a list
 select: fn [f xs] [
   if null? xs [none] [foldl :f head xs tail xs]
 ]
 
-;; partition a list into two lists by predicate
+-- partition a list into two lists by predicate
 partition: fn [pred xs] [
   ;(let ((sel (fn (x p)
   ;             (if (pred x)
@@ -238,7 +215,7 @@ partition: fn [pred xs] [
   ;  (foldr (fn (acc x) (sel x acc)) (cons nil nil) xs)))
 ]
 
-;; merge two (sorted) lists together
+-- merge two (sorted) lists together
 merge-with: fn [f xs ys] [
   if null? xs [ys] [
     if null? ys [xs] [
@@ -253,31 +230,31 @@ merge-with: fn [f xs ys] [
   ]
 ]
 
-;; merge two lists in ascending order
+-- merge two lists in ascending order
 merge: fn [xs ys] [
   merge-with :< xs ys
 ]
 
-;; sort a list of elements
+-- sort a list of elements
 ;(defn sort-with (f xs)
 ;  (foldl (fn (acc ys) (merge-with f acc ys)) nil (map list xs)))
 
-;; sort a list in ascending order
+-- sort a list in ascending order
 ;(defn sort (xs)
 ;  (sort-with < xs))
 
-;; inserts an element into a list sorted
+-- inserts an element into a list sorted
 insert-with: fn [f x xs] [
   let [s: split-when fn [i] [f x i] xs] [
     append fst s (x , snd s)
   ]
 ]
 
-;; iinsert an element into a list in ascending order
+-- iinsert an element into a list in ascending order
 insert: fn [x xs] [
   insert-with :< x xs
 ]
 
-;; randomize the elements of a list
+-- randomize the elements of a list
 ;(defn randomize (xs)
 ;  (map cdr $ sort $ map (fn (x) (cons (uniform) x)) xs))
