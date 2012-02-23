@@ -10,8 +10,11 @@ in Ext use Core ;
 -- assertion
 : ? ( bool -- ) not if "assertion failed" abort then ;
 
+-- forced failure
+: fail ( -- ) "failure" abort ;
+
 -- equality function
-: is ( x -- xt ) with x -> {x =} ;
+: is ( x -- xt ) let x -> {x =} ;
 
 -- optionally execute a block
 : maybe ( bool xt -- j*x bool ) swap if apply T else drop F then ;
@@ -19,11 +22,17 @@ in Ext use Core ;
 -- try one branch, if fails, do another
 : either ( xt xt -- j*x ) push try if pop drop else pop apply then ;
 
+-- try multiple branches
+: case ( [xt] -- j*x ) each i try if exit then next "case failed" abort ;
+
+-- syntax helper for case matching, equality assertion
+: >> ( a b -- ) = ? ;
+
 -- currying
-: curry ( x xt -- xt ) with x block -> {x block apply} ;
+: curry ( x xt -- xt ) let x block -> {x block apply} ;
 
 -- composing blocks
-: compose ( xt xt -- xt ) with a b -> {a apply b apply} ;
+: compose ( xt xt -- xt ) let a b -> {a apply b apply} ;
 
 -- flip the arguments to a function
 : flip ( xt -- xt ) {swap} swap compose ;

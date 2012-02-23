@@ -19,19 +19,19 @@ in Lists use Ext ;
 : last ( xs -- x ) uncons swap each drop i next ;
 
 -- true if any item in a list matches a predicate
-: any ( xs p -- bool ) with p -> each i p apply if T exit then next F ;
+: any ( xs p -- bool ) let p -> each i p apply if T exit then next F ;
 
 -- true if all items in a list match a predicate
 : all ( xs p -- bool ) inverse any not ;
 
 -- return the first element of a list to match a predicate
-: find ( xs p -- x t | f ) with p -> each i p apply if i T exit then next F ;
+: find ( xs p -- x t | f ) let p -> each i p apply if i T exit then next F ;
 
 -- return true if any element of a list is x
 : elem ( xs x -- bool ) is any ;
 
 -- apply a block for every element in a list
-: iter ( xs xt -- j*x ) with xt -> each i xt apply next ;
+: iter ( xs xt -- j*x ) let xt -> each i xt apply next ;
 
 -- concatenate two lists
 : append ( xs xs -- xs ) {,} foldr ;
@@ -43,7 +43,7 @@ in Lists use Ext ;
 : map ( xs xt -- xs ) {,} compose [] swap foldr ;
 
 -- delete elements from a list that do not match a predicate
-: filter ( xs p -- xs ) with p -> [] {dup p apply if , else drop then} foldr ;
+: filter ( xs p -- xs ) let p -> [] {dup p apply if , else drop then} foldr ;
 
 -- remove elements from a list that match a predicate
 : remove-if ( xs p -- xs ) inverse filter ;

@@ -31,7 +31,7 @@ let lexer =
                      ; "use"
                      ; "previous"
                      ; ":"
-                     ; "with"
+                     ; "let"
                      ; "->"
                      ; ";"
                      ; "exit"
@@ -66,7 +66,7 @@ let token =
          ; reserved lexer "use" >> return (Kwd "use")
          ; reserved lexer "previous" >> return (Kwd "previous")
          ; reserved lexer ":" >> return (Kwd ":")
-         ; reserved lexer "with" >> return (Kwd "with")
+         ; reserved lexer "let" >> return (Kwd "let")
          ; reserved lexer "->" >> return (Kwd "->")
          ; reserved lexer ";" >> return (Kwd ";")
          ; reserved lexer "exit" >> return (Kwd "exit")
@@ -163,7 +163,7 @@ let rec prog st = parser
   | [< 'Kwd "use"; ms=modules; xs,st'=prog (use st ms) >] -> xs,st'
   | [< 'Kwd "previous"; xs,st'=prog (previous st) >] -> xs,st'
   | [< 'Kwd ":"; 'Ident s; xs=body st []; xs,st'=prog (bind st s xs) >] -> xs,st'
-  | [< 'Kwd "with"; ps=locals; xs=body st ps; xs',st'=prog st >] -> 
+  | [< 'Kwd "let"; ps=locals; xs=body st ps; xs',st'=prog st >] -> 
     Cell.With (ps,xs)::xs',st'
   | [< x=factor st []; xs,st'=prog st >] -> x::xs,st'
   | [< 'Kwd s >] -> raise (Syntax_error s)
@@ -178,7 +178,7 @@ and modules = parser
 (* lexical frame *)
 and body st ps = parser
   | [< 'Kwd ";" >] -> []
-  | [< 'Kwd "with"; ps'=locals; xs=body st (ps' @ ps) >] -> [Cell.With (ps',xs)]
+  | [< 'Kwd "let"; ps'=locals; xs=body st (ps' @ ps) >] -> [Cell.With (ps',xs)]
   | [< x=factor st ps; xs=body st ps >] -> x::xs
   | [< >] -> []
 

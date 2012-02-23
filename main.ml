@@ -39,11 +39,16 @@ let rec repl st =
     done
   with End_of_file -> ()
 
+(* the user module *)
+let user = Atom.intern "User",Atom.IntMap.empty
+
 (* load all the external library files *)
 let load_ext_libs st =
   let load st f = eval st (file_in f) in
-  List.fold_left load st [ "lib/ext.ferret"
-                         ]
+  let st' = List.fold_left load st [ "lib/ext.ferret"
+                                   ]
+  in
+  { st' with Cell.env=user::st'.Cell.env }
 
 (* display the message of the day *)
 let motd () =

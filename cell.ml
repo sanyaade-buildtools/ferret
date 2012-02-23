@@ -123,10 +123,7 @@ let new_process () =
 let new_thread env =
   let bind m (s,p) = Atom.IntMap.add (Atom.intern s).Atom.i { def=Prim p } m in
   let core = List.fold_left bind Atom.IntMap.empty env in
-  let user = Atom.IntMap.empty in
-  { env=[ Atom.intern "User", user
-        ; Atom.intern "Core", core
-        ]
+  { env=[Atom.intern "Core",core]
   ; locals=[]
   ; stack=[]
   ; cs=[]
