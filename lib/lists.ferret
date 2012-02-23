@@ -18,26 +18,17 @@ in Lists use Ext ;
 -- find the last element of a list
 : last ( xs -- x ) uncons swap each drop i next ;
 
+-- true if any item in a list matches a predicate
+: any ( xs p -- bool ) with p -> each i p apply if T exit then next F ;
 
--- true if all elements of xs match a predicate
-all: fn [pred xs] [
-  foreach x xs [if not pred x [return false]] true
-]
-
--- true if any element of xs matches a predicate
-any: fn [pred xs] [
-  foreach x xs [if pred x [return true]] false
-]
+-- true if all items in a list match a predicate
+: all ( xs p -- bool ) inverse any not ;
 
 -- return the first element of a list to match a predicate
-find: fn [pred xs] [
-  foreach x xs [if pred x [return x]] none
-]
+: find ( xs p -- x t | f ) with p -> each i p apply if i T exit then next F ;
 
 -- return true if any element of a list is x
-elem: fn [x xs] [
-  any fn [i] [x = i] xs
-]
+: elem ( xs x -- bool ) is any ;
 
 -- apply a block for every element in a list
 : iter ( xs xt -- j*x ) with xt -> each i xt apply next ;
@@ -52,35 +43,36 @@ elem: fn [x xs] [
 : map ( xs xt -- xs ) {,} compose [] swap foldr ;
 
 -- delete elements from a list that do not match a predicate
-: filter ( xs pred -- xs ) with p -> [] {dup p apply if , else drop then} foldr ;
-
-
-
-
--- delete elements from a list that do not match a predicate
-filter: fn [pred xs] [
-  foldr fn [acc x] [if pred x [x , acc] [acc]] [] xs
-]
+: filter ( xs p -- xs ) with p -> [] {dup p apply if , else drop then} foldr ;
 
 -- remove elements from a list that match a predicate
-remove-if: fn [pred xs] [
-  filter fn [x] [not pred x] xs
+: remove-if ( xs p -- xs ) inverse filter ;
+
+-- remove all occurances of an element from a list
+: remove ( xs x -- xs ) is remove-if ;
+
+-- count how many times a predicate is matched in a list
+: count-if ( xs p -- n ) {if 1 + then} compose 0 swap foldl ;
+
+-- count the number of times an element occurs in a list
+: count ( xs x -- n ) is count-if ;
+
+-- find the best fit in a list
+: select ( xs f -- x ) push uncons pop foldl ;
+
+-- take elements from a list while a predicate holds true
+: take-while ( xs p -- xs ys ) 
+
+-- take the first n elements of a list
+: take ( xs n -- xs ys )
+
+-- take the first n items from a list
+take: fn [n xs] [
+  if (n < 1) `or` (null? xs) [[]] [
+    (head xs) , (take n - 1 tail xs)
+  ]
 ]
 
--- remove exact copies of an element
-remove: fn [x xs] [
-  remove-if (is x) xs
-]
-
--- count how many times a predicate is matched
-count-if: fn [pred xs] [
-  foreach x n xs 0 [if pred x [n + 1] [n]]
-]
-
--- count how many times a specific element appears
-count: fn [x xs] [
-  count-if (is x) xs
-]
 
 -- zip the elements of two lists with a function
 zip-with: fn [f xs ys] [
@@ -121,16 +113,6 @@ take-while: fn [pred xs] [
   if (not pred head xs) `or` (null? xs) [[]] [
     (head xs) , (take-while :pred tail xs)
   ]
-]
-
--- remove the first n items from a list
-drop: fn [n xs] [
-  if (n < 1) `or` (null? xs) [xs] [drop (n - 1) tail xs]
-]
-
--- remove elements from a list while a predicate is true
-drop-while: fn [pred xs] [
-  if (not pred head xs) `or` (null? xs) [xs] [drop :pred tail xs]
 ]
 
 -- partition a list at the first place a predicate fails
@@ -199,11 +181,6 @@ duplicates: fn [xs] [
     ;       (s $ partition (fn (i) (= i x)) xs))
     ;  (cons (cons x (length (car s))) $ duplicates $ cdr s))))
   ]
-]
-
--- find the best fit in a list
-select: fn [f xs] [
-  if null? xs [none] [foldl :f head xs tail xs]
 ]
 
 -- partition a list into two lists by predicate

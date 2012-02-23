@@ -3,17 +3,33 @@
 
 in Ext use Core ;
 
+-- semi-common stack shuffles
+: rot ( a b c -- b c a ) push swap pop swap ;
+: -rot ( a b c -- c a b ) swap push swap pop ;
+
 -- assertion
 : ? ( bool -- ) not if "assertion failed" abort then ;
 
 -- equality function
 : is ( x -- xt ) with x -> {x =} ;
 
+-- optionally execute a block
+: maybe ( bool xt -- j*x bool ) swap if apply T else drop F then ;
+
+-- try one branch, if fails, do another
+: either ( xt xt -- j*x ) push try if pop drop else pop apply then ;
+
 -- currying
 : curry ( x xt -- xt ) with x block -> {x block apply} ;
 
 -- composing blocks
 : compose ( xt xt -- xt ) with a b -> {a apply b apply} ;
+
+-- flip the arguments to a function
+: flip ( xt -- xt ) {swap} swap compose ;
+
+-- logical inverse the result of a function
+: inverse ( xt -- xt ) {not} compose ;
 
 -- type predicate
 : type? ( t -- xt ) {swap type = ?} curry ;
@@ -37,4 +53,6 @@ in Ext use Core ;
 -- print anything to stdout
 : . ( x -- ) form puts ;
 
-
+-- ordering of the top two cells
+: ord< ( a b -- a b | b a ) over over < if swap then ;
+: ord> ( a b -- a b | b a ) over over > if swap then ;

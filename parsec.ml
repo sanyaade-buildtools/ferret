@@ -188,6 +188,9 @@ let rec many_till p term st =
 (* make sure the next token isn't something specific *)
 let not_followed_by p = (p >> fail) <|> return ()
 
+(* try and perform a combinator, failures rollback *)
+let attempt p st = try p st with Fail _ -> None
+
 (* common combinators *)
 let upper_letter = one_of "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 let lower_letter = one_of "abcdefghijklmnopqrstuvwxyz"

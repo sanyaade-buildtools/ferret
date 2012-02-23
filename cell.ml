@@ -150,8 +150,8 @@ let spawn_thread st =
 let rec mold = function
   | Atom atom -> atom.Atom.name
   | Block (env,xs) -> Printf.sprintf "{%s}" (mold_block env xs)
-  | Bool false -> "false"
-  | Bool true -> "true"
+  | Bool false -> "F"
+  | Bool true -> "T"
   | Char c -> Printf.sprintf "'%s'" (Char.escaped c)
   | Filespec (File f) -> mold_unreadable_obj "file" f
   | Filespec (Url url) -> mold_unreadable_obj "url" (Neturl.string_of_url url)

@@ -23,7 +23,7 @@ let lexer =
   { comment_start  = string "("
   ; comment_end    = string ")"
   ; comment_line   = string "--"
-  ; ident_start    = letter <|> one_of "~!@*&/+=<>?,.-;:"
+  ; ident_start    = alphanum <|> one_of "~!@*&/+=<>?,.-;:"
   ; ident_letter   = alphanum <|> one_of "~!@*&/+=<>?,.-;:"
   ; op_start       = one_of "[]{}"
   ; op_letter      = pzero
@@ -47,8 +47,8 @@ let lexer =
                      ; "for"
                      ; "each"
                      ; "next"
-                     ; "false"
-                     ; "true"
+                     ; "F"
+                     ; "T"
                      ; "nan"
                      ; "inf"
                      ; "-inf"
@@ -82,8 +82,8 @@ let token =
          ; reserved lexer "for" >> return (Kwd "for")
          ; reserved lexer "each" >> return (Kwd "each")
          ; reserved lexer "next" >> return (Kwd "next")
-         ; reserved lexer "false" >> return (Kwd "false")
-         ; reserved lexer "true" >> return (Kwd "true")
+         ; reserved lexer "F" >> return (Kwd "F")
+         ; reserved lexer "T" >> return (Kwd "T")
          ; reserved lexer "nan" >> return (Float nan)
          ; reserved lexer "inf" >> return (Float infinity)
          ; reserved lexer "-inf" >> return (Float neg_infinity)
@@ -91,7 +91,7 @@ let token =
          ; reserved_op lexer "]" >> return (Kwd "]")
          ; reserved_op lexer "{" >> return (Kwd "{")
          ; reserved_op lexer "}" >> return (Kwd "}")
-         ; real_or_natural lexer
+         ; attempt (real_or_natural lexer)
          ; string_lit lexer >>= (fun s -> return (String s))
          ; char_lit lexer >>= (fun c -> return (Char c))
          ; identifier lexer >>= (fun s -> return (Ident s))
@@ -99,6 +99,10 @@ let token =
 
 (* convert a string to a list of tokens *)
 let tokenize = parse (between (whitespace lexer) eof (many token))
+
+(* validate a symbolic literal *)
+let symbol s = 
+  if s.[0] >= 'A' && s.[0] <= 'Z' then intern s else raise (Syntax_error s)
 
 (* a module name from a string *)
 let module_name s =
@@ -233,14 +237,15 @@ and xt st ps = parser
 
 (* literal constant *)
 and literal st ps = parser
-  | [< 'Kwd "true" >] -> Cell.Bool true
-  | [< 'Kwd "false" >] -> Cell.Bool false
+  | [< 'Kwd "T" >] -> Cell.Bool true
+  | [< 'Kwd "F" >] -> Cell.Bool false
   | [< 'Kwd "["; xs=list st ps >] -> Cell.List xs
   | [< 'Kwd "{"; xs=block st ps >] -> Cell.Block ([],xs)
   | [< 'Float f >] -> Cell.Num (Cell.Float f)
   | [< 'Int i >] -> Cell.Num (Cell.Int i)
   | [< 'String s >] -> Cell.Str s
   | [< 'Char c >] -> Cell.Char c
+  | [< 'Ident s >] -> Cell.Atom (symbol s)
 
 (* list literal *)
 and list st ps = parser
