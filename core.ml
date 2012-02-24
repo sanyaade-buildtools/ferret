@@ -396,6 +396,12 @@ let prim_tanh st = (prim_unary_float_op tanh) st
 let prim_ceil st = (prim_unary_float_op ceil) st 
 let prim_floor st = (prim_unary_float_op floor) st 
 
+(* integer fast ops *)
+let prim_inc st = (prim_unary_int_op (fun n -> n + 1)) st
+let prim_dec st = (prim_unary_int_op (fun n -> n - 1)) st
+let prim_lshift st = (prim_unary_int_op (fun n -> n lsl 1)) st
+let prim_rshift st = (prim_unary_int_op (fun n -> n asr 1)) st
+
 (* bitwise operations *)
 let prim_lnot st = (prim_unary_int_op ( lnot )) st 
 let prim_land st = (prim_binary_int_op ( land )) st 

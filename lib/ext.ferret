@@ -41,20 +41,20 @@ in Ext use Core ;
 : inverse ( xt -- xt ) {not} compose ;
 
 -- type predicate
-: type? ( t -- xt ) {swap type = ?} curry ;
+: type? ( t -- xt ) swap type = ? ;
 
--- type predicateas
-: atom? ( x -- ) type Atom = ? ;
-: block? ( x -- ) type Block = ? ;
-: bool? ( x -- ) type Bool = ? ;
-: char? ( x -- ) type Char = ? ;
-: file? ( x -- ) type File = ? ;
-: float? ( x -- ) type Float = ? ;
-: int? ( x -- ) type Int = ? ;
-: list? ( x -- ) type List = ? ;
-: pid? ( x -- ) type Pid = ? ;
-: string? ( x -- ) type String = ? ;
-: url? ( x -- ) type Url = ? ;
+-- type predicates
+: atom? ( x -- ) Atom type? ;
+: block? ( x -- ) Block type? ;
+: bool? ( x -- ) Bool type? ;
+: char? ( x -- ) Char type? ;
+: file? ( x -- ) File type? ;
+: float? ( x -- ) Float type? ;
+: int? ( x -- ) Int type? ;
+: list? ( x -- ) List type? ;
+: pid? ( x -- ) Pid type? ;
+: string? ( x -- ) String type? ;
+: url? ( x -- ) Url type? ;
 
 -- apply a block n times
 : times ( xt n -- j*x ) swap {for get lift next} do drop ;
@@ -65,3 +65,9 @@ in Ext use Core ;
 -- ordering of the top two cells
 : ord< ( a b -- a b | b a ) over over < if swap then ;
 : ord> ( a b -- a b | b a ) over over > if swap then ;
+
+-- get the min/max of two values
+: min ( a b -- a | b ) ord> drop ;
+: max ( a b -- a | b ) ord< drop ;
+
+

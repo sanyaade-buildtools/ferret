@@ -13,7 +13,7 @@ in Lists use Ext ;
 : collect ( xt n -- xs ) [] swap for over apply , next nip ;
 
 -- generate a list of numbers from [1..n]
-: iota ( n -- xs ) [] swap for i 1 + , next ;
+: iota ( n -- xs ) [] swap for i 1+ , next ;
 
 -- find the last element of a list
 : last ( xs -- x ) uncons swap each drop i next ;

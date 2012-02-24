@@ -30,6 +30,7 @@ let lexer =
   ; reserved_names = [ "in"
                      ; "use"
                      ; "previous"
+                     ; "as"
                      ; ":"
                      ; "let"
                      ; "->"
@@ -65,6 +66,7 @@ let token =
   choose [ reserved lexer "in" >> return (Kwd "in")
          ; reserved lexer "use" >> return (Kwd "use")
          ; reserved lexer "previous" >> return (Kwd "previous")
+         ; reserved lexer "as" >> return (Kwd "as")
          ; reserved lexer ":" >> return (Kwd ":")
          ; reserved lexer "let" >> return (Kwd "let")
          ; reserved lexer "->" >> return (Kwd "->")
@@ -138,12 +140,28 @@ let previous st =
 (* define a new word in the top library *)
 let bind st s xs =
   let def = 
-    { Cell.def=Cell.Colon xs 
-    } 
+      { Cell.def=Cell.Colon xs 
+      } 
   in
   match st.Cell.env with
       [] -> raise No_dictionary
-    | (k,d)::ds -> { st with Cell.env=(k,IntMap.add (intern s).Atom.i def d)::ds }
+    | (k,d)::ds -> 
+      { st with Cell.env=(k,IntMap.add (intern s).Atom.i def d)::ds }
+
+(* define a constant in the top library *)
+let const st s =
+  let def x =
+      { Cell.def=Cell.Const x
+      }
+  in
+  match st.Cell.stack,st.Cell.env with
+      (_,[]) -> raise No_dictionary
+    | ([],_) -> raise Cell.Stack_underflow
+    | (x::xs,(k,d)::ds) -> 
+      { st with 
+        Cell.env=(k,IntMap.add (intern s).Atom.i (def x) d)::ds 
+      ; Cell.stack=xs
+      }
 
 (* lookup a word in the dictionary *)
 let find st ps s =
@@ -162,6 +180,7 @@ let rec prog st = parser
   | [< 'Kwd "in"; 'Ident s; xs,st'=prog (push st s) >] -> xs,st'
   | [< 'Kwd "use"; ms=modules; xs,st'=prog (use st ms) >] -> xs,st'
   | [< 'Kwd "previous"; xs,st'=prog (previous st) >] -> xs,st'
+  | [< 'Kwd "as"; 'Ident s; xs,st'=prog (const st s) >] -> xs,st'
   | [< 'Kwd ":"; 'Ident s; xs=body st []; xs,st'=prog (bind st s xs) >] -> xs,st'
   | [< 'Kwd "let"; ps=locals; xs=body st ps; xs',st'=prog st >] -> 
     Cell.With (ps,xs)::xs',st'

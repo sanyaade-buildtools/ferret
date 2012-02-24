@@ -10,7 +10,6 @@ open Cell
 open Compiler
 
 exception Return of Cell.st
-exception Stack_underflow
 
 (* file-in source *)
 let rec file_in f =
@@ -24,11 +23,23 @@ let rec file_in f =
   with e -> close_in chan; raise e
 
 (* parse and interpret a string *)
-and eval st src = 
-  let xs,st' = compile st src in interp st' xs
+and eval st src = let xs,st' = compile st src in interp st' xs
 
 (* interpret a list of tokens *)
-and interp st = List.fold_left execute st
+and interp st = function
+  | [] -> begin Thread.yield (); st end
+  | xs -> List.fold_left execute st xs
+
+(* perform a single reduction *)
+and reduce st = execute (yield st; st)
+
+(* count a reduction and maybe yield *)
+and yield st = 
+  incr st.reducs;
+  if !(st.reducs) land 0x80 = 0x80
+  then begin
+    Thread.yield ()
+  end
 
 (* push a cell onto the stack *)
 and push st x = { st with stack=x::st.stack }
@@ -69,6 +80,7 @@ and execute st = function
 and do_word st word = 
   match word.def with
     | Colon xs -> do_colon st xs
+    | Const x -> do_push st x
     | Prim p -> p st
 
 (* call a colon definition, catching returns *)
@@ -119,7 +131,7 @@ and do_for st xs =
     | i -> loop (interp { st with i=Some (Num (Int (i-1))) } xs) (i-1)
   in
   let (i,st') = coerce int_of_cell (pop st) in
-  loop st' i
+  { loop st' i with i=st.i }
 
 (* each loop *)
 and do_each st xs =
@@ -128,20 +140,12 @@ and do_each st xs =
     | c::cs -> loop (interp { st with i=Some c } xs) cs
   in
   let (cs,st') = coerce list_of_cell (pop st) in
-  loop st' cs
+  { loop st' cs with i=st.i }
 
 (* push literal *)
 and do_push st = function
   | Block (_,xs) -> { st with stack=Block (st.locals,xs)::st.stack }
   | x -> { st with stack=x::st.stack }
-
-(* count a reduction and maybe yield *)
-let yield st = 
-  incr st.reducs;
-  if !(st.reducs) land 0x80 = 0x80
-  then begin
-    Thread.yield ()
-  end
 
 (* run a block until completed *)
 let run_thread st block =

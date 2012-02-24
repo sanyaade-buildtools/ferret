@@ -55,6 +55,7 @@ and word =
 (* user-defined and native procedures *)
 and def =
   | Colon of xt list
+  | Const of t
   | Prim of native
 
 (* primitive function *)
@@ -89,6 +90,10 @@ and process_info =
 and process_result =
     Completed of st
   | Terminated of exn
+
+(* stack exceptions *)
+exception Control_stack_underflow
+exception Stack_underflow
 
 (* type exceptions *)
 exception Not_a_atom of t
