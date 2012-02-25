@@ -58,11 +58,11 @@ in Ext use Core ;
 -- apply a block n times
 : times ( xt n -- j*x ) swap {for get lift next} do drop ;
 
--- time how long a block takes to execute
-: time ( xt -- j*x ) clock {lift {clock - abs} modify} do "Time: " print . ;
-
 -- print anything to stdout
 : . ( x -- ) form puts ;
+
+-- time how long a block takes to execute
+: time ( xt -- j*x ) clock {lift {clock - abs} modify} do "Time: " print . ;
 
 -- ordering of the top two cells
 : ord< ( a b -- a b | b a ) over over < if swap then ;

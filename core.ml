@@ -184,6 +184,10 @@ let prim_type st =
       x::xs -> { st with stack=Atom (Atom.intern (typeof x))::xs }
     | _ -> raise Stack_underflow
 
+(* return the time elapsed in this thread *)
+let prim_clock st =
+  { st with stack=Num (Float (Sys.time ()))::st.stack }
+
 (* insert a new element at the head of a list *)
 let prim_cons st =
   match st.stack with

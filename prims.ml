@@ -21,6 +21,7 @@ let prims =
   ; ("clear",Core.prim_clear)
   ; ("i",Core.prim_i)
   ; ("type",Core.prim_type)
+  ; ("clock",Core.prim_clock)
 
     (* stack shuffling prims *)
   ; ("dup",Core.prim_dup)
