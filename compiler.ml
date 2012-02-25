@@ -89,6 +89,7 @@ let token =
          ; reserved lexer "nan" >> return (Float nan)
          ; reserved lexer "inf" >> return (Float infinity)
          ; reserved lexer "-inf" >> return (Float neg_infinity)
+         ; char '#' >> reserved_op lexer "[" >> return (Kwd "#[")
          ; reserved_op lexer "[" >> return (Kwd "[")
          ; reserved_op lexer "]" >> return (Kwd "]")
          ; reserved_op lexer "{" >> return (Kwd "{")
@@ -209,6 +210,7 @@ and locals = parser
 (* body factor *)
 and factor st ps = parser
   | [< 'Kwd "exit" >] -> Cell.Exit
+  | [< 'Kwd "["; xs=expr st ps >] -> Cell.Expr xs
   | [< xt=branch st ps >] -> xt
   | [< xt=xt st ps >] -> xt
 
@@ -258,7 +260,7 @@ and xt st ps = parser
 and literal st ps = parser
   | [< 'Kwd "T" >] -> Cell.Bool true
   | [< 'Kwd "F" >] -> Cell.Bool false
-  | [< 'Kwd "["; xs=list st ps >] -> Cell.List xs
+  | [< 'Kwd "#["; xs=list st ps >] -> Cell.List xs
   | [< 'Kwd "{"; xs=block st ps >] -> Cell.Block ([],xs)
   | [< 'Float f >] -> Cell.Num (Cell.Float f)
   | [< 'Int i >] -> Cell.Num (Cell.Int i)
@@ -266,7 +268,12 @@ and literal st ps = parser
   | [< 'Char c >] -> Cell.Char c
   | [< 'Ident s >] -> Cell.Atom (symbol s)
 
-(* list literal *)
+(* list expression *)
+and expr st ps = parser
+  | [< 'Kwd "]" >] -> []
+  | [< x=factor st ps; xs=expr st ps >] -> x::xs
+
+(* literal list *)
 and list st ps = parser
   | [< 'Kwd "]" >] -> []
   | [< x=literal st ps; xs=list st ps >] -> x::xs

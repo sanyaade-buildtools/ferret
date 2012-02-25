@@ -28,10 +28,7 @@ and eval st src = let xs,st' = compile st src in interp st' xs
 (* interpret a list of tokens *)
 and interp st = function
   | [] -> begin Thread.yield (); st end
-  | xs -> List.fold_left execute st xs
-
-(* perform a single reduction *)
-and reduce st = execute (yield st; st)
+  | xs -> List.fold_left (fun st -> execute (yield st)) st xs
 
 (* count a reduction and maybe yield *)
 and yield st = 
@@ -39,7 +36,8 @@ and yield st =
   if !(st.reducs) land 0x80 = 0x80
   then begin
     Thread.yield ()
-  end
+  end;
+  st
 
 (* push a cell onto the stack *)
 and push st x = { st with stack=x::st.stack }
@@ -72,6 +70,7 @@ and execute st = function
   | Loop (xs) -> do_loop st xs
   | For (xs) -> do_for st xs
   | Each (xs) -> do_each st xs
+  | Expr (xs) -> do_expr st xs
   | Lit (x) -> do_push st x
   | Recurse -> st
   | Exit -> raise (Return st)
@@ -80,7 +79,7 @@ and execute st = function
 and do_word st word = 
   match word.def with
     | Colon xs -> do_colon st xs
-    | Const x -> do_push st x
+    | Const x -> { st with stack=x::st.stack }
     | Prim p -> p st
 
 (* call a colon definition, catching returns *)
@@ -142,10 +141,19 @@ and do_each st xs =
   let (cs,st') = coerce list_of_cell (pop st) in
   { loop st' cs with i=st.i }
 
+(* reduce a list by interpreting it in a closed environment *)
+and do_expr st = function
+  | [] -> { st with stack=List []::st.stack }
+  | xs -> let xs' = (interp { st with stack=[]; cs=[] } xs).stack in
+          { st with stack=List (List.rev xs')::st.stack }
+
 (* push literal *)
-and do_push st = function
-  | Block (_,xs) -> { st with stack=Block (st.locals,xs)::st.stack }
-  | x -> { st with stack=x::st.stack }
+and do_push st x = { st with stack=reduce st x::st.stack }
+
+(* reduce a cell before pushing it *)
+and reduce st = function
+  | Block (_,xs) -> Block (st.locals,xs)
+  | (x) -> x
 
 (* run a block until completed *)
 let run_thread st block =

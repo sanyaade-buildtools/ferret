@@ -28,6 +28,13 @@ let prims =
   ; ("swap",Core.prim_swap)
   ; ("over",Core.prim_over)
   ; ("nip",Core.prim_nip)
+  ; ("rot",Core.prim_rot)
+  ; ("-rot",Core.prim_rrot)
+  ; ("2dup",Core.prim_2dup)
+  ; ("2drop",Core.prim_2drop)
+  ; ("2swap",Core.prim_2swap)
+  ; ("2over",Core.prim_2over)
+  ; ("2nip",Core.prim_2nip)
 
     (* control stack prims *)
   ; ("push",Core.prim_push)

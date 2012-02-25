@@ -35,7 +35,7 @@ let prim_clear st =
 (* remove the top stack item *)
 let prim_drop st = 
   match st.stack with
-      x::xs -> { st with stack=xs }
+      _::xs -> { st with stack=xs }
     | _ -> raise Stack_underflow
 
 (* duplicate the top stack item *)
@@ -59,7 +59,49 @@ let prim_over st =
 (* drop the second stack item *)
 let prim_nip st =
   match st.stack with
-      a::b::xs -> { st with stack=a::xs }
+      a::_::xs -> { st with stack=a::xs }
+    | _ -> raise Stack_underflow
+
+(* rotate the top 3 stack items *)
+let prim_rot st =
+  match st.stack with
+      a::b::c::xs -> { st with stack=c::a::b::xs }
+    | _ -> raise Stack_underflow
+
+(* reverse rotate the top 3 stack items *)
+let prim_rrot st =
+  match st.stack with
+      a::b::c::xs -> { st with stack=b::c::a::xs }
+    | _ -> raise Stack_underflow
+
+(* duplicate the top two stack items *)
+let prim_2dup st =
+  match st.stack with
+      a::b::xs -> { st with stack=a::b::a::b::xs }
+    | _ -> raise Stack_underflow
+
+(* remove the top two stack items *)
+let prim_2drop st =
+  match st.stack with
+      _::_::xs -> { st with stack=xs }
+    | _ -> raise Stack_underflow
+
+(* swap the top 4 stack items as pairs *)
+let prim_2swap st =
+  match st.stack with
+      a::b::c::d::xs -> { st with stack=c::d::a::b::xs }
+    | _ -> raise Stack_underflow
+
+(* duplicate the 3rd and 4th stack items *)
+let prim_2over st =
+  match st.stack with
+      a::b::c::d::xs -> { st with stack=c::d::a::b::c::d::xs }
+    | _ -> raise Stack_underflow
+
+(* drop the 3rd and 4th stack items *)
+let prim_2nip st =
+  match st.stack with
+      a::b::_::_::xs -> { st with stack=a::b::xs }
     | _ -> raise Stack_underflow
 
 (* push the top of the stack to the control stack *)

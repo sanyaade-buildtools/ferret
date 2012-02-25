@@ -3,9 +3,8 @@
 
 in Ext use Core ;
 
--- semi-common stack shuffles
-: rot ( a b c -- b c a ) push swap pop swap ;
-: -rot ( a b c -- c a b ) swap push swap pop ;
+-- map the top control stack item
+: modify ( xt -- ) pop swap apply push ;
 
 -- assertion
 : ? ( bool -- ) not if "assertion failed" abort then ;
@@ -41,7 +40,7 @@ in Ext use Core ;
 : inverse ( xt -- xt ) {not} compose ;
 
 -- type predicate
-: type? ( t -- xt ) swap type = ? ;
+: type? ( t -- xt ) swap type = ;
 
 -- type predicates
 : atom? ( x -- ) Atom type? ;
@@ -59,6 +58,9 @@ in Ext use Core ;
 -- apply a block n times
 : times ( xt n -- j*x ) swap {for get lift next} do drop ;
 
+-- time how long a block takes to execute
+: time ( xt -- j*x ) clock {lift {clock - abs} modify} do "Time: " print . ;
+
 -- print anything to stdout
 : . ( x -- ) form puts ;
 
@@ -70,4 +72,5 @@ in Ext use Core ;
 : min ( a b -- a | b ) ord> drop ;
 : max ( a b -- a | b ) ord< drop ;
 
-
+-- the inverse of zero
+: 0<> ( n -- bool ) 0= not ;

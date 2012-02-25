@@ -43,6 +43,7 @@ and xt =
   | Loop of xt list
   | For of xt list
   | Each of xt list
+  | Expr of xt list
   | Lit of t
   | Exit
   | Recurse
@@ -176,6 +177,7 @@ and mold_block env xs =
     | Loop xs -> mold_flow1 env "begin" xs "again"
     | For xs -> mold_flow1 env "for" xs "next"
     | Each xs -> mold_flow1 env "each" xs "next"
+    | Expr xs -> Printf.sprintf "[%s]" (mold_block env xs)
     | Lit x -> mold x
     | Exit -> "exit"
     | Recurse -> "recurse"

@@ -22,6 +22,7 @@ TOP=ferret
 # third-party, site-lib modules
 
 OCAMLNET=equeue netstring netsys netclient smtp
+LWT=lwt
 
 # ----------------------------------------------------------------------------
 # compiler and linker options
