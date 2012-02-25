@@ -1,30 +1,23 @@
-(* ferret types
+(* ferret core types
  *
  * copyright (c) 2012 by jeffrey massung
  * all rights reserved
  *
- * types.ml
+ * cell.ml
  *)
 
-(* fundamental cell *)
 type t =
-  | Undef
-  | Array of t array
-  | Block of t list
+  | Atom of Atom.t
+  | Block of local_env * xt list
   | Bool of bool
-  | Email of string
-  | Expr of t list
+  | Char of char
   | Filespec of filespec
+  | List of t list
   | Num of num
-  | Obj of context
-  | Pair of t * t
   | Pid of Thread.t * process_info
-  | Proc of proc
-  | Quote of t
   | Str of string
-  | Word of Word.t
 
-(* file location spec *)
+(* location spec *)
 and filespec =
   | File of string
   | Url of Neturl.url
@@ -36,56 +29,83 @@ and port =
 
 (* numeric values *)
 and num =
-  | Int of int
   | Float of float
+  | Int of int
 
-(* procedures *)
-and proc = 
-  | Closure of local_env * Atom.t list * t list
-  | Prim of Atom.t * native
+(* executable tokens *)
+and xt = 
+  | Word of Atom.t * word
+  | Local of Atom.t
+  | With of Atom.t list * xt list
+  | If of xt list * xt list
+  | While of xt list * xt list
+  | Until of xt list
+  | Loop of xt list
+  | For of xt list
+  | Each of xt list
+  | Expr of xt list
+  | Lit of t
+  | Exit
+  | Recurse
 
-(* dynamically scoped and lexically scoped environments *)
-and dynamic_env = (int, t) Hashtbl.t
-and local_env = (int * t ref) list
+(* dictionary entry *)
+and word =
+    { def : def
+    }
+
+(* user-defined and native procedures *)
+and def =
+  | Colon of xt list
+  | Const of t
+  | Prim of native
 
 (* primitive function *)
-and native = st -> t list -> t * t list
+and native = st -> st
 
-(* object context *)
-and context = (t Atom.AtomMap.t) ref
+(* dynamically scoped and lexically scoped environments *)
+and dynamic_env = word Atom.IntMap.t
+and local_env = (int * t) list
+
+(* a dictionary is a list of named environments *)
+and dict = (Atom.t * dynamic_env) list
 
 (* thread state *)
 and st =
-    { env        : dynamic_env list
-    ; stack      : local_env
-    ; pinfo      : process_info
-    ; reductions : int ref
+    { env    : dict
+    ; locals : local_env
+    ; stack  : t list
+    ; cs     : t list
+    ; pinfo  : process_info
+    ; reducs : int ref
+    ; i      : t option
     }
 
 (* coroutine process info *)
 and process_info =
-    { mailbox : t Queue.t
-    ; status  : process_result Mvar.t
-    ; lock    : Mutex.t
-    ; full    : Condition.t
+    { mb     : t Queue.t
+    ; status : process_result Mvar.t
+    ; lock   : Mutex.t
     }
 
 (* corouting result *)
 and process_result =
-    Completed of t
+    Completed of st
   | Terminated of exn
 
+(* stack exceptions *)
+exception Control_stack_underflow
+exception Stack_underflow
+
 (* type exceptions *)
-exception Not_a_array of t
+exception Not_a_atom of t
+exception Not_a_block of t
 exception Not_a_boolean of t
-exception Not_a_email of t
+exception Not_a_char of t
 exception Not_a_file of t
 exception Not_a_float of t
-exception Not_a_function of t
 exception Not_a_int of t
 exception Not_a_list of t
 exception Not_a_number of t
-exception Not_a_obj of t
 exception Not_a_pair of t
 exception Not_a_port of t
 exception Not_a_port_in of t
@@ -93,136 +113,123 @@ exception Not_a_port_out of t
 exception Not_a_process of t
 exception Not_a_spec of t
 exception Not_a_string of t
-exception Not_a_undef of t
 exception Not_a_url of t
-exception Not_a_var of t
-exception Not_a_word of t
 
 (* compare exceptions *)
 exception Uncomparable_type
-exception Compare_fail of int
-
-(* bootstrapped values *)
-let obj = Obj (ref Atom.AtomMap.empty)
 
 (* create a new coroutine process *)
 let new_process () =
-  { mailbox=Queue.create ()
+  { mb=Queue.create ()
   ; status=Mvar.empty ()
   ; lock=Mutex.create ()
-  ; full=Condition.create ()
   }
 
 (* create a new thread state *)
 let new_thread env =
-  Hashtbl.replace env (Atom.intern "object").Atom.i obj;
-  { env=[env]
+  let bind m (s,p) = Atom.IntMap.add (Atom.intern s).Atom.i { def=Prim p } m in
+  let core = List.fold_left bind Atom.IntMap.empty env in
+  { env=[Atom.intern "Core",core]
+  ; locals=[]
   ; stack=[]
+  ; cs=[]
   ; pinfo=new_process ()
-  ; reductions=ref 0
+  ; reducs=ref 0
+  ; i=None
   }
 
 (* spawn a new coroutine off a process *)
 let spawn_thread st = 
-  { env=Hashtbl.create 40::st.env
+  { env=st.env
+  ; locals=st.locals
   ; stack=[]
+  ; cs=[]
   ; pinfo=new_process ()
-  ; reductions=ref 0 
+  ; reducs=ref 0 
+  ; i=None
   }
 
 (* convert a cell to a readable string *)
 let rec mold = function
-  | Undef -> "none"
-  | Array xs -> Printf.sprintf "#[%s]" (mold_array xs)
-  | Block xs -> Printf.sprintf "[%s]" (mold_list xs)
-  | Bool false -> "false"
-  | Bool true -> "true"
-  | Email email -> Printf.sprintf "email %s" (String.escaped email)
-  | Expr xs -> Printf.sprintf "(%s)" (mold_list xs)
-  | Filespec (File file) -> Printf.sprintf "file \"%s\"" file
-  | Filespec (Url url) -> Printf.sprintf "url \"%s\"" (Neturl.string_of_url url)
-  | Num (Int i) -> string_of_int i
+  | Atom atom -> atom.Atom.name
+  | Block (env,xs) -> Printf.sprintf "{%s}" (mold_block env xs)
+  | Bool false -> "F"
+  | Bool true -> "T"
+  | Char c -> Printf.sprintf "'%s'" (Char.escaped c)
+  | Filespec (File f) -> mold_unreadable_obj "file" f
+  | Filespec (Url url) -> mold_unreadable_obj "url" (Neturl.string_of_url url)
+  | List xs -> Printf.sprintf "[%s]" (mold_list xs)
   | Num (Float f) -> string_of_float f
-  | Obj context -> mold_context context
-  | Pair (a,b) -> Printf.sprintf "(%s @ %s)" (mold a) (mold b)
+  | Num (Int i) -> string_of_int i
   | Pid (pid,_) -> mold_unreadable_obj "pid" (string_of_int (Thread.id pid))
-  | Proc (Closure (_,ps,xs)) -> mold_fn ps xs
-  | Proc (Prim (_,_)) -> "native"
-  | Quote x -> "'" ^ mold x
-  | Str s -> "\"" ^ (String.escaped s) ^ "\""
-  | Word (Word.Sym s) -> s.Atom.name
-  | Word (Word.Binary (Word.Op,s)) -> s.Atom.name
-  | Word (Word.Binary (Word.Infix,s)) -> "`" ^ s.Atom.name ^ "`"
-  | Word (Word.Getter s) -> ":" ^ s.Atom.name
-  | Word (Word.Var s) -> s.Atom.name ^ ":"
+  | Str s -> Printf.sprintf "\"%s\"" (String.escaped s)
 
-(* convert an array to a string *)
-and mold_array xs =
-  let buf = Buffer.create (Array.length xs * 4) in
-  let accum i x =
-    Buffer.add_string buf (mold x);
-    if i < Array.length xs - 1
-    then Buffer.add_char buf ' '
-  in  
-  Array.iteri accum xs;
-  Buffer.contents buf
+(* convert a block to a string *)
+and mold_block env xs =
+  let mold_xt = function
+    | Word (atom,_) -> mold_atom env atom
+    | Local atom -> mold_atom env atom
+    | With (ps,xs) -> mold_env env ps xs
+    | If (ts,[]) -> mold_flow1 env "if" ts "then"
+    | If (ts,es) -> mold_flow2 env "if" ts "else" es "then"
+    | While (ts,es) -> mold_flow2 env "begin" ts "while" es "repeat"
+    | Until xs -> mold_flow1 env "begin" xs "until"
+    | Loop xs -> mold_flow1 env "begin" xs "again"
+    | For xs -> mold_flow1 env "for" xs "next"
+    | Each xs -> mold_flow1 env "each" xs "next"
+    | Expr xs -> Printf.sprintf "[%s]" (mold_block env xs)
+    | Lit x -> mold x
+    | Exit -> "exit"
+    | Recurse -> "recurse"
+  in
+  String.concat " " (List.map mold_xt xs)  
+
+(* convert an atom to its lexical value or print it *)
+and mold_atom env p =
+  try mold (List.assq p.Atom.i env) with Not_found -> p.Atom.name
+
+(* convert a lexical scope to a string *)
+and mold_env env ps xs =
+  let args = String.concat " " (List.map (fun p -> p.Atom.name) ps) in
+  String.concat " " ["with";args;"->";mold_block env xs]
+
+(* e.g. if .. then *)
+and mold_flow1 env start xs close =
+  String.concat " " [start;mold_block env xs;close]
+
+(* e.g. if .. else .. then *)
+and mold_flow2 env start ts mid es close =
+  String.concat " " [start;mold_block env ts;mid;mold_block env es;close]
 
 (* convert a list of cells to a string *)
 and mold_list xs = String.concat " " (List.map mold xs)
 
-(* convert an object context to a string *)
-and mold_context obj =
-  let buf = Buffer.create 40 in
-  let dump k x =
-    Buffer.add_string buf (k.Atom.name);
-    Buffer.add_string buf (": ");
-    Buffer.add_string buf (mold x);
-    Buffer.add_char buf ' '
-  in
-  if Atom.AtomMap.is_empty !obj
-  then "make object []"
-  else
-    begin
-      Atom.AtomMap.iter dump !obj;
-      Printf.sprintf "make object [%s\b]" (Buffer.contents buf)
-    end
-
-(* convert a closure to a string *)
-and mold_fn ps xs = 
-  Printf.sprintf "fn [%s] [%s]" (mold_atoms ps) (mold_list xs)
-
-(* create a string from a list of atoms *)
-and mold_atoms ps =
-  String.concat " " (List.map (fun a -> a.Atom.name) ps)
-
 (* create a string to print for an unreadable object *)
 and mold_unreadable_obj =
-  Printf.sprintf "#<%s %s>"
+  Printf.sprintf "<%s:%s>"
 
 (* coerce function *)
-let coerce f (x,xs) = (f x,xs)
-
-(* array coercion *)
-let array_of_cell = function
-  | Array xs -> xs
-  | x -> raise (Not_a_array x)
+let coerce f (x,st) = (f x,st)
 
 (* atom coercion *)
 let atom_of_cell = function
-  | Word (Word.Sym x) -> x
-  | Word (Word.Binary (_,x)) -> x
-  | x -> raise (Not_a_word x)
+  | Atom atom -> atom
+  | x -> raise (Not_a_atom x)
+
+(* block coercion *)
+let block_of_cell = function
+  | Block (env,xts) -> env,xts
+  | x -> raise (Not_a_block x)
 
 (* boolean coercion *)
 let bool_of_cell = function
-  | Undef -> false
   | Bool x -> x
   | x -> raise (Not_a_boolean x)
 
-(* email coercion *)
-let email_of_cell = function
-  | Email e -> e
-  | x -> raise (Not_a_email x)
+(* character coercion *)
+let char_of_cell = function
+  | Char x -> x
+  | x -> raise (Not_a_char x)
 
 (* file coercion *)
 let file_of_cell = function
@@ -243,43 +250,29 @@ let in_chan_of_cell = function
 (* integer coercion *)
 let int_of_cell = function
   | Num (Int x) -> x
-  | Num (Float x) -> int_of_float x
   | x -> raise (Not_a_int x)
 
 (* list coercion *)
 let list_of_cell = function
-  | Block xs -> xs
+  | List xs -> xs
   | x -> raise (Not_a_list x)
 
 (* number coercion *)
 let num_of_cell = function
   | Num x -> x
   | x -> raise (Not_a_number x)
-
-(* object context coercion *)
-let obj_of_cell = function
-  | Obj x -> x
-  | x -> raise (Not_a_obj x)
-
-(* option coercion *)
-let option_of_cell = function
-  | Undef -> None
-  | x -> Some x
 (*
 (* output channel coercion *)
 let out_chan_of_cell = function
   | Port_out (h,_) -> h
   | x -> raise (Not_a_port x)
 *)
+(*
 (* pair coercion *)
 let pair_of_cell = function
   | Pair (a,b) -> a,b
   | x -> raise (Not_a_pair x)
-
-(* procedure coercion *)
-let proc_of_cell = function
-  | Proc p -> p
-  | x -> raise (Not_a_function x)
+*)
 
 (* spec coercion *)
 let spec_of_cell = function
@@ -301,44 +294,16 @@ let url_of_cell = function
   | Filespec (Url url) -> url
   | x -> raise (Not_a_url x)
 
-(* var coercion *)
-let var_of_cell = function
-  | Word (Word.Var x) -> x
-  | x -> raise (Not_a_var x)
-
-(* symbol coercion *)
-let sym_of_cell = function
-  | Word (Word.Sym x) -> x
-  | x -> raise (Not_a_word x)
-
 (* compare function *)
 let rec compare_cell = function
-  | Array a -> fun b -> compare_array a (array_of_cell b)
-  | Block a -> fun b -> compare_list a (list_of_cell b)
+  | Atom a -> fun b -> Atom.compare a (atom_of_cell b)
   | Bool a -> fun b -> compare a (bool_of_cell b)
-  | Email a -> fun b -> compare a (email_of_cell b)
-  | Expr a -> fun b -> compare_list a (list_of_cell b)
+  | Char a -> fun b -> compare a (char_of_cell b)
   | Filespec a -> fun b -> compare_spec a (spec_of_cell b)
+  | List a -> fun b -> compare_list a (list_of_cell b)
   | Num a -> fun b -> compare_num a (num_of_cell b)
-  | Pair (a1,a2) -> fun b -> compare_pair (a1,a2) (pair_of_cell b)
-  | Proc a -> raise Uncomparable_type
-  | Pid (a,_) -> fun b -> compare_process a (thread_of_cell b)
-  | Quote a -> fun b -> compare_cell a b
-  | Obj a -> fun b -> compare_obj a (obj_of_cell b)
   | Str a -> fun b -> compare a (string_of_cell b)
-  | Word a -> fun b -> Atom.compare (Word.atom a) (atom_of_cell b)
-  | Undef -> function
-      | Undef -> 0
-      | x -> raise (Not_a_undef x)
-
-(* compare two arrays *)
-and compare_array a b =
-  let len = min (Array.length a) (Array.length b) in
-  for i = 0 to len - 1 do
-    let c = compare a.(i) b.(i) in
-    if c <> 0 then raise (Compare_fail c)
-  done;
-  compare (Array.length a) (Array.length b)
+  | _ -> raise Uncomparable_type
 
 (* compare a list of cells *)
 and compare_list a b =
@@ -357,12 +322,6 @@ and compare_pair (a1,a2) (b1,b2) =
       0 -> compare_cell a2 b2
     | x -> x
 
-(* compare two objects *)
-and compare_obj a b =
-  if a == b
-  then 0
-  else 1
-
 (* compare numerics *)
 and compare_num a b =
   match a,b with
@@ -370,10 +329,6 @@ and compare_num a b =
     | (Int x,Float y) -> compare (float_of_int x) y
     | (Float x,Int y) -> compare x (float_of_int y)
     | (Float x,Float y) -> compare x y
-
-(* compare the thread id of two processes *)
-and compare_process a (b,_) =
-  if a = b then 0 else raise Uncomparable_type
 
 (* compare two location specs *)
 and compare_spec a b =

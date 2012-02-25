@@ -1,0 +1,76 @@
+-- core.ferret
+--
+
+in Ext use Core ;
+
+-- map the top control stack item
+: modify ( xt -- ) pop swap apply push ;
+
+-- assertion
+: ? ( bool -- ) not if "assertion failed" abort then ;
+
+-- forced failure
+: fail ( -- ) "failure" abort ;
+
+-- equality function
+: is ( x -- xt ) let x -> {x =} ;
+
+-- optionally execute a block
+: maybe ( bool xt -- j*x bool ) swap if apply T else drop F then ;
+
+-- try one branch, if fails, do another
+: either ( xt xt -- j*x ) push try if pop drop else pop apply then ;
+
+-- try multiple branches
+: case ( [xt] -- j*x ) each i try if exit then next "case failed" abort ;
+
+-- syntax helper for case matching, equality assertion
+: >> ( a b -- ) = ? ;
+
+-- currying
+: curry ( x xt -- xt ) let x block -> {x block apply} ;
+
+-- composing blocks
+: compose ( xt xt -- xt ) let a b -> {a apply b apply} ;
+
+-- flip the arguments to a function
+: flip ( xt -- xt ) {swap} swap compose ;
+
+-- logical inverse the result of a function
+: inverse ( xt -- xt ) {not} compose ;
+
+-- type predicate
+: type? ( t -- xt ) swap type = ;
+
+-- type predicates
+: atom? ( x -- ) Atom type? ;
+: block? ( x -- ) Block type? ;
+: bool? ( x -- ) Bool type? ;
+: char? ( x -- ) Char type? ;
+: file? ( x -- ) File type? ;
+: float? ( x -- ) Float type? ;
+: int? ( x -- ) Int type? ;
+: list? ( x -- ) List type? ;
+: pid? ( x -- ) Pid type? ;
+: string? ( x -- ) String type? ;
+: url? ( x -- ) Url type? ;
+
+-- apply a block n times
+: times ( xt n -- j*x ) swap {for get lift next} do drop ;
+
+-- time how long a block takes to execute
+: time ( xt -- j*x ) clock {lift {clock - abs} modify} do "Time: " print . ;
+
+-- print anything to stdout
+: . ( x -- ) form puts ;
+
+-- ordering of the top two cells
+: ord< ( a b -- a b | b a ) over over < if swap then ;
+: ord> ( a b -- a b | b a ) over over > if swap then ;
+
+-- get the min/max of two values
+: min ( a b -- a | b ) ord> drop ;
+: max ( a b -- a | b ) ord< drop ;
+
+-- the inverse of zero
+: 0<> ( n -- bool ) 0= not ;

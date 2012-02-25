@@ -7,143 +7,162 @@
  *)
 
 open Cell
+open Compiler
 
-exception Missing_arg
-exception Unbound_symbol of string
-exception Return of Cell.t
+exception Return of Cell.st
 
-(* import a file *)
-let rec import st file =
-    let chan = open_in file in
+(* file-in source *)
+let rec file_in f =
+  let chan = open_in_bin f in
+  try
     let len = in_channel_length chan in
-    let source = String.create len in
-    really_input chan source 0 len;
+    let s = String.create len in
+    really_input chan s 0 len;
     close_in chan;
-    ignore (eval st source)
+    s
+  with e -> close_in chan; raise e
 
 (* parse and interpret a string *)
-and eval st src =
-  match Reader.tokenize src with
-      Some (tokens,_) -> interp st tokens
-    | None -> raise Reader.Parse_error
+and eval st src = let xs,st' = compile st src in interp st' xs
 
-(* interpret an entire frame, return the last value reduced *)
+(* interpret a list of tokens *)
 and interp st = function
-  | [] -> begin yield st; Undef end
-  | xs ->
-    match reduce1 st xs with
-        (x,[]) -> x
-      | (_,xs') -> interp st xs'
+  | [] -> begin Thread.yield (); st end
+  | xs -> List.fold_left (fun st -> execute (yield st)) st xs
 
 (* count a reduction and maybe yield *)
 and yield st = 
-  incr st.reductions;
-  if !(st.reductions) land 0x80 = 0x80
+  incr st.reducs;
+  if !(st.reducs) land 0x80 = 0x80
   then begin
     Thread.yield ()
-  end
-
-(* pop a value from the frame, don't reduce it *)
-and pop1 = function
-  | [] -> raise Missing_arg
-  | x::xs -> x,xs
-
-(* reduce a single value from the frame *)
-and reduce1 st = function
-  | (Word (Word.Var f)::xs) -> var st f xs
-  | (x::Word (Word.Binary (_,f))::xs) -> binary st f x xs
-  | (xs) -> primary st xs
-
-(* perform a primary operation *)
-and primary st = function
-  | (Word f::xs) -> word st xs f
-  | (Expr block::xs) -> expr st block xs
-  | (Quote x::xs) -> x,xs
-  | (x::xs) -> x,xs
-  | (_) -> raise Missing_arg
-
-(* perform a binary operation *)
-and binary st f x xs =
-  let (lval,_) = primary st [x] in
-  let (rval,xs') = primary st xs in
-  let (x',_) = apply st [Quote lval;Quote rval] (lookup st f) in
-  reduce1 st (x'::xs')
-
-(* evaluate a word *)
-and word st xs = function
-  | Word.Var f -> var st f xs
-  | Word.Getter f -> lookup st f,xs
-  | f -> apply st xs (lookup st (Word.atom f))
-
-(* apply the frame to a procedure *)
-and apply st xs = function
-  | Proc proc -> call st xs proc
-  | x -> x,xs
-
-(* call a procedure with a list of arguments *)
-and call st xs = function
-  | Closure (env,ps,block) -> begin yield st; funcall st env ps block xs end
-  | Prim (_,p) -> begin yield st; p st xs end
-
-(* call a closure, binding new locals, and executing *)
-and funcall st env ps block xs =
-  let (env',xs') = frame st env xs ps in
-  try
-    let x = interp { st with stack=env' } block in x,xs'
-  with
-      Return x -> x,xs'
-    | e -> raise e
-
-(* create a new local frame from a list of bindings *)  
-and frame st env xs = 
-  let bind (env,xs) p =
-    let (x,xs') = reduce1 st xs in 
-    if p.Atom.name.[0] = '_'
-    then env,xs'
-    else (p.Atom.i,ref x)::env,xs'
-  in
-  List.fold_left bind (env,xs)
-
-(* create a frame with new bindings, undefined *)
-and empty_frame st =
-  let bind env p = (p.Atom.i,ref Undef)::env in
-  List.fold_left bind st.stack
-
-(* bind a value to a variable *)
-and var st f xs =
-  let ((x,xs') as r) = reduce1 st xs in
-  begin
-    try 
-      List.assoc f.Atom.i st.stack := x
-    with Not_found -> bind st f x
   end;
-  r
+  st
 
-(* bind an atom to a value *)
-and bind st f x =
-  Hashtbl.replace (List.hd st.env) f.Atom.i x
+(* push a cell onto the stack *)
+and push st x = { st with stack=x::st.stack }
 
-(* interpret a block and return back *)
-and expr st block xs = interp st block,xs
+(* pop a single value from the stack *)
+and pop st = 
+  match st.stack with
+      x::xs -> x,{ st with stack=xs }
+    | [] -> raise Stack_underflow
 
-(* lookup a local or global binding *)
-and lookup st f =
-  try !(List.assoc f.Atom.i st.stack) with Not_found ->
-  let rec find = function
-    | e::es -> (try Hashtbl.find e f.Atom.i with Not_found -> find es)
-    | [] -> raise (Unbound_symbol f.Atom.name)
+(* pop the top value and map it into a function, push the result *)
+and fmap f st =
+  match st.stack with
+      x::xs -> { st with stack=f x::xs }
+    | _ -> raise Stack_underflow
+
+(* apply a block *)
+and apply st xt =
+  let ps,xs = block_of_cell xt in
+  { interp { st with locals=ps } xs with locals=st.locals }
+
+(* execute a token *)
+and execute st = function
+  | Word (_,word) -> do_word st word
+  | Local (atom) -> do_local st atom
+  | With (ps,xs) -> do_with st ps xs
+  | If (ts,es) -> do_if st ts es
+  | While (ts,xs) -> do_while st ts xs
+  | Until (xs) -> do_until st xs
+  | Loop (xs) -> do_loop st xs
+  | For (xs) -> do_for st xs
+  | Each (xs) -> do_each st xs
+  | Expr (xs) -> do_expr st xs
+  | Lit (x) -> do_push st x
+  | Recurse -> st
+  | Exit -> raise (Return st)
+
+(* execute a word *)
+and do_word st word = 
+  match word.def with
+    | Colon xs -> do_colon st xs
+    | Const x -> { st with stack=x::st.stack }
+    | Prim p -> p st
+
+(* call a colon definition, catching returns *)
+and do_colon st xs =
+  try interp st xs with Return st' -> st' | e -> raise e
+
+(* push a local *)
+and do_local st atom =
+  { st with stack=List.assq atom.Atom.i st.locals::st.stack }
+
+(* create a new lexical scope *)
+and do_with st ps xs =
+  let bind st p = 
+    match st.stack with
+        x::xs -> { st with locals=(p.Atom.i,x)::st.locals; stack=xs }
+      | [] -> raise Stack_underflow
   in
-  find st.env  
+  interp (List.fold_left bind st ps) xs
+
+(* conditional branch *)
+and do_if st ts es =
+  let (flag,st') = coerce bool_of_cell (pop st) in
+  interp st' (if flag then ts else es)
+
+(* while loop *)
+and do_while st ts xs =
+  let rec loop st = 
+    let (flag,st') = coerce bool_of_cell (pop (interp st ts)) in
+    if flag then loop (interp st' xs) else st'
+  in
+  loop st
+
+(* until loop *)
+and do_until st xs =
+  let rec loop st =
+    let (flag,st') = coerce bool_of_cell (pop (interp st xs)) in
+    if flag then loop st' else st'
+  in
+  loop st
+
+(* infinite loop *)
+and do_loop st xs = do_loop (interp st xs) xs
+
+(* for loop *)
+and do_for st xs =
+  let rec loop st = function
+    | 0 -> st
+    | i -> loop (interp { st with i=Some (Num (Int (i-1))) } xs) (i-1)
+  in
+  let (i,st') = coerce int_of_cell (pop st) in
+  { loop st' i with i=st.i }
+
+(* each loop *)
+and do_each st xs =
+  let rec loop st = function
+    | [] -> st
+    | c::cs -> loop (interp { st with i=Some c } xs) cs
+  in
+  let (cs,st') = coerce list_of_cell (pop st) in
+  { loop st' cs with i=st.i }
+
+(* reduce a list by interpreting it in a closed environment *)
+and do_expr st = function
+  | [] -> { st with stack=List []::st.stack }
+  | xs -> let xs' = (interp { st with stack=[]; cs=[] } xs).stack in
+          { st with stack=List (List.rev xs')::st.stack }
+
+(* push literal *)
+and do_push st x = { st with stack=reduce st x::st.stack }
+
+(* reduce a cell before pushing it *)
+and reduce st = function
+  | Block (_,xs) -> Block (st.locals,xs)
+  | (x) -> x
 
 (* run a block until completed *)
 let run_thread st block =
   try
-    let x = interp st block in
-    Mvar.put st.pinfo.status (Completed x)
+    let st' = interp st block in Mvar.put st.pinfo.status (Completed st')
   with e -> Mvar.put st.pinfo.status (Terminated e)
 
 (* start a spawned thread running in a child process *)
-let fork_thread st block =
+let fork_thread st (env,xts) =
   let st' = spawn_thread st in
-  Pid ((Thread.create (run_thread st') block),st'.pinfo)
+  Pid (Thread.create (run_thread { st' with locals=env }) xts,st'.pinfo)
 

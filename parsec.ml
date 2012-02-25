@@ -36,7 +36,7 @@ let return x = function
   | None -> None
 
 (* attempt to parse a source string with a parse combinator *)
-let parse s p =
+let parse p s =
   try
     match p (Some { source=s; pos=0; line=1 }) with
         Some (x,st') -> Some (x,st')
@@ -187,6 +187,9 @@ let rec many_till p term st =
 
 (* make sure the next token isn't something specific *)
 let not_followed_by p = (p >> fail) <|> return ()
+
+(* try and perform a combinator, failures rollback *)
+let attempt p st = try p st with Fail _ -> None
 
 (* common combinators *)
 let upper_letter = one_of "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
