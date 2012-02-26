@@ -42,8 +42,6 @@ let prims =
   ; ("pop",Core.prim_pop)
   ; ("get",Core.prim_get)
   ; ("put",Core.prim_put)
-  ; ("do",Core.prim_do)
-  ; ("lift",Core.prim_lift)
 
     (* block closure prims *)
   ; ("apply",Core.prim_apply)
@@ -122,7 +120,8 @@ let prims =
   ; ("floor",Core.prim_floor)
   ; ("truncate",Core.prim_truncate)
   ; ("float",Core.prim_float)
-  ; ("0=",Core.prim_zero)
+  ; ("0=",Core.prim_zero true)
+  ; ("0<>",Core.prim_zero false)
   ; ("0<",Core.prim_negative)
   ; ("0>",Core.prim_positive)
   ; ("epsilon",Core.prim_epsilon)

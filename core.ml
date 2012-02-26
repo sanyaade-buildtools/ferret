@@ -144,20 +144,6 @@ let prim_try st =
         let st' = apply { st with stack=xs } b in
         { st' with stack=Bool true::st'.stack }
       with _ -> { st with stack=Bool false::xs }
-  
-(* push to control stack, apply block, pop control stack *)
-let prim_do st =
-  match st.stack with
-      b::x::xs -> let st' = apply { st with stack=xs; cs=x::st.cs } b in
-                  { st' with stack=List.hd st'.cs::st'.stack; cs=List.tl st'.cs }
-    | _ -> raise Stack_underflow
-
-(* lift a block into the control stack and apply it *)
-let prim_lift st =
-  match st.stack,st.cs with
-      (b::xs,c::cs) -> { apply { st with stack=xs; cs=cs } b with cs=st.cs }
-    | ([],_) -> raise Stack_underflow
-    | (_,[]) -> raise Control_stack_underflow
 
 (* push the current iterator *)
 let prim_i st =
@@ -478,14 +464,14 @@ let prim_float st =
     | _ -> raise Stack_underflow
 
 (* test for zero, compares very close as well *)
-let prim_zero st =
+let prim_zero flag st =
   let zerop = function
-    | Int n -> n = 0
+    | Int n -> (n = 0) = flag
     | Float n ->
       match classify_float n with
-          FP_zero -> true
-        | FP_subnormal -> true
-        | _ -> false
+          FP_zero -> flag
+        | FP_subnormal -> flag
+        | _ -> not flag
   in
   match st.stack with
       x::xs -> { st with stack=Bool (zerop (num_of_cell x))::xs }
