@@ -93,7 +93,9 @@ and do_local st atom =
 and do_with st ps xs =
   let bind st p = 
     match st.stack with
-        x::xs -> { st with locals=(p.Atom.i,x)::st.locals; stack=xs }
+        x::xs -> if p.Atom.name.[0] = '_'
+                 then { st with stack=xs }
+                 else { st with locals=(p.Atom.i,x)::st.locals; stack=xs }
       | [] -> raise Stack_underflow
   in
   interp (List.fold_left bind st ps) xs
