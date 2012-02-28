@@ -9,56 +9,58 @@ if exists("b:current_syntax")
 endif
 
 " Keyword chacters
-set isk=_,!,@,&,*,=,+,<,>,?,\,,/,-
+set isk=_,~,!,@,*,&,/,+,=,<,>,?,\,,\.,-,;,:,
 
 " Case-insensitive
-syn case ignore
-
-" Comments
-syn match ferretComment ";.*$"
-
-" Strings and characters
-syn region ferretString oneline start=+"+ skip=+\"+ end=+"+ contains=ferretChar
-
-" Characters
-syn match  ferretChar contained "\^[^[:space:][]"
+"syn case ignore
 
 " Words
-syn match ferretWord    "\a\k*"
-syn match ferretVar     "\a\k*:"
-syn match ferretTopVar  "^\a\k*:"
-syn match ferretQuote   ":\a\k*"
+syn match ferretWord    "\(\d\|\a\|\k\)\+"
+syn match ferretAtom    "[A-Z]\(\d\|\a\|\k\)*"
 
-" Infix operators
-syn match ferretInfix   "`\a\k*`"
+" Comments
+syn match ferretComment "--.*$"
+
+" Block comments, strings and characters
+syn region ferretString start=+"+ skip=+\\"+ end=+"+ contains=ferretSpecialChar
+syn region ferretChar start=+'+ skip=+\\'+ end=+'+
+syn region ferretStack start=+(+ end=+)+
+
+" Characters
+syn match  ferretSpecialChar contained "\^[^[:space:][]"
 
 " Numbers
-syn match ferretInt     "[+-]\=\d\+"
-syn match ferretNumber  "[+-]\=\(\d\+\('\d*\)*\)\=[.]\d*\(e[+-]\=\d\+\)\="
-syn match ferretHex     "[+-]\=0x\x\+"
-syn match ferretOct     "[+-]\=0o\o\+"
+syn match ferretInt     "[+-]\=\d\+\(\d\|\a\|\k\)\@!"
+syn match ferretNumber  "[+-]\=\d\+[.]\d*\(e[+-]\=\d\+\)\=\(\d\|\a\|\k\)\@!"
+syn match ferretHex     "[+-]\=0x\x\+\(\d\|\a\|\k\)\@!"
+syn match ferretOct     "[+-]\=0o\o\+\(\d\|\a\|\k\)\@!"
+syn match ferretBin     "[+-]\=0b[01]\+\(\d\|\a\|\k\)\@!"
 
 " Keywords
-syn keyword ferretConst none object true false newline space cr lf tab
-syn keyword ferretKey   file url email
-syn keyword ferretKey   fn let return make
-syn keyword ferretKey   if when unless
-syn keyword ferretKey   for foreach forever while until
+syn keyword ferretConst nan inf -inf
+syn keyword ferretTop   in use previous : ; as
+syn keyword ferretKey   let -> exit 
+syn keyword ferretKey   inline private
+syn keyword ferretKey   if else then begin while repeat until again
+syn keyword ferretKey   for each next
 
 " Define highlighting
-hi def link ferretNumber  Number
-hi def link ferretInt     Number
-hi def link ferretHex     Number
-hi def link ferretOct     Number
-hi def link ferretComment Comment
-hi def link ferretKey     Keyword
-hi def link ferretString  String
-hi def link ferretVar     Identifier
-hi def link ferretTopVar  Special
-hi def link ferretConst   Constant
-hi def link ferretWord    Normal
-hi def link ferretQuote   Special
-hi def link ferretInfix   Type
-hi def link ferretChar    SpecialChar
+hi def link ferretNumber      Number
+hi def link ferretInt         Number
+hi def link ferretHex         Number
+hi def link ferretOct         Number
+hi def link ferretBin         Number
+hi def link ferretComment     Comment
+hi def link ferretKey         Keyword
+hi def link ferretString      String
+hi def link ferretVar         Identifier
+hi def link ferretTop         Special
+hi def link ferretConst       Constant
+hi def link ferretAtom        Constant
+hi def link ferretWord        Normal
+hi def link ferretQuote       Special
+hi def link ferretStack       Type
+hi def link ferretChar        SpecialChar
+hi def link ferretSpecialChar SpecialChar
 
 let b:current_syntax="ferret"

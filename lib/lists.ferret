@@ -7,13 +7,13 @@ in Lists use Ext ;
 : list ( x -- xs ) [] swap , ;
 
 -- create a list with an element repeated n times
-: rep ( x n -- xs ) [] swap for over , next nip ;
+: rep ( x n -- xs ) let x n -> [n for x next] ;
 
 -- apply a block n times and collect the results
-: collect ( xt n -- xs ) [] swap for over apply , next nip ;
+: collect ( xt n -- xs ) let f n -> [n for f apply next] ;
 
 -- generate a list of numbers from [1..n]
-: iota ( n -- xs ) [] swap for i 1+ , next ;
+: iota ( n -- xs ) let n -> [n for n i - next] ;
 
 -- find the last element of a list
 : last ( xs -- x ) uncons swap each drop i next ;
@@ -25,7 +25,7 @@ in Lists use Ext ;
 : all ( xs p -- bool ) inverse any not ;
 
 -- return the first element of a list to match a predicate
-: find ( xs p -- x t | f ) let p -> each i p apply if i T exit then next F ;
+: find ( xs p -- x T | F ) let p -> each i p apply if i T exit then next F ;
 
 -- return true if any element of a list is x
 : elem ( xs x -- bool ) is any ;
@@ -40,10 +40,10 @@ in Lists use Ext ;
 : concat ( [xs] -- xs ) [] {append} foldl ; 
 
 -- map a block across a list, collect the results
-: map ( xs xt -- xs ) {,} compose [] swap foldr ;
+: map ( xs xt -- xs ) let xs f -> [xs each i f apply next] ;
 
 -- delete elements from a list that do not match a predicate
-: filter ( xs p -- xs ) let p -> [] {dup p apply if , else drop then} foldr ;
+: filter ( xs p -- xs ) let xs p -> [xs each i p apply if i then next] ;
 
 -- remove elements from a list that match a predicate
 : remove-if ( xs p -- xs ) inverse filter ;
@@ -52,7 +52,7 @@ in Lists use Ext ;
 : remove ( xs x -- xs ) is remove-if ;
 
 -- count how many times a predicate is matched in a list
-: count-if ( xs p -- n ) {if 1 + then} compose 0 swap foldl ;
+: count-if ( xs p -- n ) {if 1+ then} compose 0 swap foldl ;
 
 -- count the number of times an element occurs in a list
 : count ( xs x -- n ) is count-if ;

@@ -507,9 +507,7 @@ let prim_min_float st = push st (Num (Float min_float))
 let prim_max_float st = push st (Num (Float max_float))
 
 (* random number generation *)
-let prim_uniform st = push st (Num (Float (Random.float 1.0)))
 let prim_random st = (prim_unary_op Random.int Random.float) st
-let prim_choice st = push st (Bool (Random.bool ()))
 
 (* boolean not *)
 let prim_not st =

@@ -72,7 +72,6 @@ and execute st = function
   | Each (xs) -> do_each st xs
   | Expr (xs) -> do_expr st xs
   | Lit (x) -> do_push st x
-  | Recurse -> st
   | Exit -> raise (Return st)
 
 (* execute a word *)

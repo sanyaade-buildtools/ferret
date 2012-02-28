@@ -1,0 +1,15 @@
+-- fizzbuzz demo
+--
+
+in Fizzbuzz 
+
+-- simple asserting statements
+: fizz?     ( i -- ) 3 mod 0= >> "Fizz" . ;
+: buzz?     ( i -- ) 5 mod 0= >> "Buzz" . ;
+: fizzbuzz? ( i -- ) 15 mod 0= >> "FizzBuzz" . ;
+
+-- choose the proper fizzbuzz print statement
+: fizzbuzz  ( i -- ) [ {fizzbuzz?} {fizz?} {buzz?} {.} ] case ;
+
+-- run the test
+: run       ( -- ) 100 for 100 i - fizzbuzz next ;

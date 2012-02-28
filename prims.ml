@@ -129,9 +129,7 @@ let prims =
   ; ("min-int",Core.prim_min_int)
   ; ("max-float",Core.prim_max_float)
   ; ("min-float",Core.prim_min_float)
-  ; ("uniform",Core.prim_uniform)
   ; ("random",Core.prim_random)
-  ; ("choice",Core.prim_choice)
 
     (* boolean operator prims *)
   ; ("not",Core.prim_not)
@@ -163,11 +161,5 @@ let prims =
   ; ("input",Core.prim_input)
   ; ("read",Core.prim_read)
   ; ("load",Core.prim_load)
-(*
-
-    (* date/time prims *)
-  ; ("clock",Time.prim_clock)
-
-*)
   ]
 

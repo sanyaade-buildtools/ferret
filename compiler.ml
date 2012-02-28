@@ -23,8 +23,8 @@ let lexer =
   { comment_start  = string "("
   ; comment_end    = string ")"
   ; comment_line   = string "--"
-  ; ident_start    = alphanum <|> one_of "~!@*&/+=<>?,.-;:"
-  ; ident_letter   = alphanum <|> one_of "~!@*&/+=<>?,.-;:"
+  ; ident_start    = alphanum <|> one_of "_~!@*&/+=<>?,.-;:"
+  ; ident_letter   = alphanum <|> one_of "_~!@*&/+=<>?,.-;:"
   ; op_start       = one_of "[]{}"
   ; op_letter      = pzero
   ; reserved_names = [ "in"
@@ -35,8 +35,9 @@ let lexer =
                      ; "let"
                      ; "->"
                      ; ";"
+                     ; "inline"
+                     ; "private"
                      ; "exit"
-                     ; "recurse"
                      ; "if"
                      ; "else"
                      ; "then"
@@ -71,8 +72,9 @@ let token =
          ; reserved lexer "let" >> return (Kwd "let")
          ; reserved lexer "->" >> return (Kwd "->")
          ; reserved lexer ";" >> return (Kwd ";")
+         ; reserved lexer "inline" >> return (Kwd "inline")
+         ; reserved lexer "private" >> return (Kwd "private")
          ; reserved lexer "exit" >> return (Kwd "exit")
-         ; reserved lexer "recurse" >> return (Kwd "recurse")
          ; reserved lexer "if" >> return (Kwd "if")
          ; reserved lexer "else" >> return (Kwd "else")
          ; reserved lexer "then" >> return (Kwd "then")
@@ -142,6 +144,7 @@ let previous st =
 let bind st s xs =
   let def = 
       { Cell.def=Cell.Colon xs 
+      ; Cell.flags=[]
       } 
   in
   match st.Cell.env with
@@ -153,6 +156,7 @@ let bind st s xs =
 let const st s =
   let def x =
       { Cell.def=Cell.Const x
+      ; Cell.flags=[]
       }
   in
   match st.Cell.stack,st.Cell.env with

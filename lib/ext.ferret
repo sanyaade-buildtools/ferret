@@ -11,7 +11,7 @@ in Ext use Core ;
 : modify ( xt -- ) pop swap apply push ;
 
 -- assertion
-: ? ( bool -- ) not if "assertion failed" abort then ;
+: >> ( bool -- ) not if "assertion failed" abort then ;
 
 -- forced failure
 : fail ( -- ) "failure" abort ;
@@ -28,10 +28,7 @@ in Ext use Core ;
 -- try multiple branches
 : case ( [xt] -- j*x ) each i try if exit then next "case failed" abort ;
 
--- syntax helper for case matching, equality assertion
-: >> ( a b -- ) = ? ;
-
--- currying
+-- currying values into a block
 : curry ( x xt -- xt ) let x block -> {x block apply} ;
 
 -- composing blocks
@@ -47,17 +44,17 @@ in Ext use Core ;
 : type? ( t -- xt ) swap type = ;
 
 -- type predicates
-: atom? ( x -- ) Atom type? ;
-: block? ( x -- ) Block type? ;
-: bool? ( x -- ) Bool type? ;
-: char? ( x -- ) Char type? ;
-: file? ( x -- ) File type? ;
-: float? ( x -- ) Float type? ;
-: int? ( x -- ) Int type? ;
-: list? ( x -- ) List type? ;
-: pid? ( x -- ) Pid type? ;
-: string? ( x -- ) String type? ;
-: url? ( x -- ) Url type? ;
+: atom? ( x -- bool ) Atom type? ;
+: block? ( x -- bool ) Block type? ;
+: bool? ( x -- bool ) Bool type? ;
+: char? ( x -- bool ) Char type? ;
+: file? ( x -- bool ) File type? ;
+: float? ( x -- bool ) Float type? ;
+: int? ( x -- bool ) Int type? ;
+: list? ( x -- bool ) List type? ;
+: pid? ( x -- bool ) Pid type? ;
+: string? ( x -- bool ) String type? ;
+: url? ( x -- bool ) Url type? ;
 
 -- apply a block n times
 : times ( xt n -- j*x ) swap {for get lift next} do drop ;
@@ -67,5 +64,4 @@ in Ext use Core ;
 
 -- time how long a block takes to execute
 : time ( xt -- j*x ) clock {lift {clock - abs} modify} do "Time: " print . ;
-
 

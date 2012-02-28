@@ -46,11 +46,11 @@ and xt =
   | Expr of xt list
   | Lit of t
   | Exit
-  | Recurse
 
 (* dictionary entry *)
 and word =
-    { def : def
+    { mutable def   : def
+    ; mutable flags : code_field list
     }
 
 (* user-defined and native procedures *)
@@ -58,6 +58,11 @@ and def =
   | Colon of xt list
   | Const of t
   | Prim of native
+
+(* word definition flags *)
+and code_field =
+  | Inline
+  | Private
 
 (* primitive function *)
 and native = st -> st
@@ -127,7 +132,8 @@ let new_process () =
 
 (* create a new thread state *)
 let new_thread env =
-  let bind m (s,p) = Atom.IntMap.add (Atom.intern s).Atom.i { def=Prim p } m in
+  let entry p = { def=Prim p; flags=[] } in
+  let bind m (s,p) = Atom.IntMap.add (Atom.intern s).Atom.i (entry p) m in
   let core = List.fold_left bind Atom.IntMap.empty env in
   { env=[Atom.intern "Core",core]
   ; locals=[]
@@ -180,7 +186,6 @@ and mold_block env xs =
     | Expr xs -> Printf.sprintf "[%s]" (mold_block env xs)
     | Lit x -> mold x
     | Exit -> "exit"
-    | Recurse -> "recurse"
   in
   String.concat " " (List.map mold_xt xs)  
 
