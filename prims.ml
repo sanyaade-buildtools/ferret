@@ -51,8 +51,6 @@ let prims =
   ; (",",Core.prim_cons)
   ; ("uncons",Core.prim_uncons)
   ; ("null",Core.prim_null)
-  ; ("len",Core.prim_len)
-  ; ("rev",Core.prim_rev)
   ; ("hd",Core.prim_hd)
   ; ("tl",Core.prim_tl)
   ; ("foldl",Core.prim_foldl)

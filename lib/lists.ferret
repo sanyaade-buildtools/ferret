@@ -6,6 +6,18 @@ in Lists use Ext ;
 -- create a list from a single item
 : list ( x -- xs ) [] swap , ;
 
+-- push all elements of a list onto the stack
+: explode ( xs -- j*x ) each i next ;
+
+-- coalesce all the stack items into a list
+: implode ( i*x -- xs ) [] begin {swap ,} try until ;
+
+-- get the length of a list
+: len ( xs -- n ) 0 swap each 1+ next ;
+
+-- reverse a list
+: rev ( xs -- xs ) [] swap each i , next ;
+
 -- create a list with an element repeated n times
 : rep ( x n -- xs ) let x n -> [n for x next] ;
 
@@ -59,3 +71,4 @@ in Lists use Ext ;
 
 -- find the best fit in a list
 : select ( xs f -- x ) push uncons pop foldl ;
+

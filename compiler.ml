@@ -38,6 +38,7 @@ let lexer =
                      ; "inline"
                      ; "private"
                      ; "exit"
+                     ; "recurse"
                      ; "if"
                      ; "else"
                      ; "then"
@@ -75,6 +76,7 @@ let token =
          ; reserved lexer "inline" >> return (Kwd "inline")
          ; reserved lexer "private" >> return (Kwd "private")
          ; reserved lexer "exit" >> return (Kwd "exit")
+         ; reserved lexer "recurse" >> return (Kwd "recurse")
          ; reserved lexer "if" >> return (Kwd "if")
          ; reserved lexer "else" >> return (Kwd "else")
          ; reserved lexer "then" >> return (Kwd "then")
@@ -211,9 +213,10 @@ and locals = parser
   | [< 'Kwd "->" >] -> []
   | [< 'Ident p; ps=locals >] -> ps @ [intern p]
 
-(* body factor *)
+(* non-top-level factor *)
 and factor st ps = parser
   | [< 'Kwd "exit" >] -> Cell.Exit
+  | [< 'Kwd "recurse" >] -> Cell.Recurse
   | [< 'Kwd "["; xs=expr st ps >] -> Cell.Expr xs
   | [< xt=branch st ps >] -> xt
   | [< xt=xt st ps >] -> xt

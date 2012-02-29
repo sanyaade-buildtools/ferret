@@ -46,6 +46,7 @@ and xt =
   | Expr of xt list
   | Lit of t
   | Exit
+  | Recurse
 
 (* dictionary entry *)
 and word =
@@ -80,6 +81,7 @@ and st =
     ; locals : local_env
     ; stack  : t list
     ; cs     : t list
+    ; frame  : xt list
     ; pinfo  : process_info
     ; reducs : int ref
     ; i      : t option
@@ -139,6 +141,7 @@ let new_thread env =
   ; locals=[]
   ; stack=[]
   ; cs=[]
+  ; frame=[]
   ; pinfo=new_process ()
   ; reducs=ref 0
   ; i=None
@@ -150,6 +153,7 @@ let spawn_thread st =
   ; locals=st.locals
   ; stack=[]
   ; cs=[]
+  ; frame=[]
   ; pinfo=new_process ()
   ; reducs=ref 0 
   ; i=None
@@ -186,6 +190,7 @@ and mold_block env xs =
     | Expr xs -> Printf.sprintf "[%s]" (mold_block env xs)
     | Lit x -> mold x
     | Exit -> "exit"
+    | Recurse -> "recurse"
   in
   String.concat " " (List.map mold_xt xs)  
 

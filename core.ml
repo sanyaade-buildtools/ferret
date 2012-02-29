@@ -190,19 +190,8 @@ let prim_uncons st =
 (* true if a list is empty *)
 let prim_null st =
   match st.stack with
-      x::xs -> { st with stack=Bool ([] = list_of_cell x)::xs }
-    | _ -> raise Stack_underflow
-
-(* length of a list *)
-let prim_len st =
-  match st.stack with
-      x::xs -> { st with stack=Num (Int (List.length (list_of_cell x)))::xs }
-    | _ -> raise Stack_underflow
-
-(* reverse a list *)
-let prim_rev st =
-  match st.stack with
-      x::xs -> { st with stack=List (List.rev (list_of_cell x))::xs }
+      List []::xs -> { st with stack=Bool true::xs }
+    | x::xs -> { st with stack=Bool false::List (list_of_cell x)::xs }
     | _ -> raise Stack_underflow
 
 (* get the head of a list *)

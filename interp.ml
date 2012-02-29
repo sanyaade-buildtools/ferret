@@ -57,7 +57,8 @@ and fmap f st =
 (* apply a block *)
 and apply st xt =
   let ps,xs = block_of_cell xt in
-  { interp { st with locals=ps } xs with locals=st.locals }
+  let st' = interp { st with locals=ps } xs in
+  { st' with locals=st.locals }
 
 (* execute a token *)
 and execute st = function
@@ -72,7 +73,8 @@ and execute st = function
   | Each (xs) -> do_each st xs
   | Expr (xs) -> do_expr st xs
   | Lit (x) -> do_push st x
-  | Exit -> raise (Return st)
+  | Recurse -> do_recurse st
+  | Exit -> do_exit st
 
 (* execute a word *)
 and do_word st word = 
@@ -83,7 +85,14 @@ and do_word st word =
 
 (* call a colon definition, catching returns *)
 and do_colon st xs =
-  try interp st xs with Return st' -> st' | e -> raise e
+  let st' = 
+    try 
+      interp { st with frame=xs } xs 
+    with 
+        Return st' -> st' 
+      | e -> raise e
+  in
+  { st' with frame=st.frame }
 
 (* push a local *)
 and do_local st atom =
@@ -150,6 +159,12 @@ and do_expr st = function
 
 (* push literal *)
 and do_push st x = { st with stack=reduce st x::st.stack }
+
+(* recurse into the current frame *)
+and do_recurse st = interp st st.frame
+
+(* exit the current frame *)
+and do_exit st = raise (Return st)
 
 (* reduce a cell before pushing it *)
 and reduce st = function
