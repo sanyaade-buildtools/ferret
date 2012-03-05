@@ -116,19 +116,6 @@ let prim_pop st =
       c::cs -> { st with stack=c::st.stack; cs=cs }
     | _ -> raise Control_stack_underflow
 
-(* get the top of the control stack *)
-let prim_get st =
-  match st.cs with
-      c::cs -> { st with stack=c::st.stack }
-    | _ -> raise Control_stack_underflow
-
-(* replace the top of the control stack *)
-let prim_put st =
-  match st.stack,st.cs with
-      (x::xs,c::cs) -> { st with stack=xs; cs=x::cs }
-    | ([],_) -> raise Stack_underflow
-    | (_,[]) -> raise Control_stack_underflow
-
 (* apply a block *)
 let prim_apply st =
   match st.stack with

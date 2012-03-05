@@ -36,12 +36,8 @@ let prims =
   ; ("2swap",Core.prim_2swap)
   ; ("2over",Core.prim_2over)
   ; ("2nip",Core.prim_2nip)
-
-    (* control stack prims *)
   ; ("push",Core.prim_push)
   ; ("pop",Core.prim_pop)
-  ; ("get",Core.prim_get)
-  ; ("put",Core.prim_put)
 
     (* block closure prims *)
   ; ("apply",Core.prim_apply)

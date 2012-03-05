@@ -33,6 +33,7 @@ let lexer =
                      ; "as"
                      ; ":"
                      ; "let"
+                     ; "flet"
                      ; "->"
                      ; ";"
                      ; "inline"
@@ -71,6 +72,7 @@ let token =
          ; reserved lexer "as" >> return (Kwd "as")
          ; reserved lexer ":" >> return (Kwd ":")
          ; reserved lexer "let" >> return (Kwd "let")
+         ; reserved lexer "flet" >> return (Kwd "flet")
          ; reserved lexer "->" >> return (Kwd "->")
          ; reserved lexer ";" >> return (Kwd ";")
          ; reserved lexer "inline" >> return (Kwd "inline")
@@ -189,6 +191,8 @@ let rec prog st = parser
   | [< 'Kwd "previous"; xs,st'=prog (previous st) >] -> xs,st'
   | [< 'Kwd "as"; 'Ident s; xs,st'=prog (const st s) >] -> xs,st'
   | [< 'Kwd ":"; 'Ident s; xs=body st []; xs,st'=prog (bind st s xs) >] -> xs,st'
+  | [< 'Kwd "flet"; 'Ident s; xs=flet st []; ys=body (bind st s xs) []; xs',st'=prog st >] ->
+    Cell.With ([],ys)::xs',st'
   | [< 'Kwd "let"; ps=locals; xs=body st ps; xs',st'=prog st >] -> 
     Cell.With (ps,xs)::xs',st'
   | [< x=factor st []; xs,st'=prog st >] -> x::xs,st'
@@ -204,8 +208,19 @@ and modules = parser
 (* lexical frame *)
 and body st ps = parser
   | [< 'Kwd ";" >] -> []
+  | [< 'Kwd "flet"; 'Ident s; xs=flet st ps; ys=body (bind st s xs) ps >] -> 
+    [Cell.With ([],ys)]
   | [< 'Kwd "let"; ps'=locals; xs=body st (ps' @ ps) >] -> [Cell.With (ps',xs)]
   | [< x=factor st ps; xs=body st ps >] -> x::xs
+  | [< >] -> []
+
+(* lambda function *)
+and flet st ps = parser
+  | [< 'Kwd "->" >] -> []
+  | [< 'Kwd "flet"; 'Ident s; xs=flet st ps; ys=body (bind st s xs) ps >] -> 
+    [Cell.With ([],ys)]
+  | [< 'Kwd "let"; ps'=locals; xs=body st (ps' @ ps) >] -> [Cell.With (ps',xs)]
+  | [< x=factor st ps; xs=flet st ps >] -> x::xs
   | [< >] -> []
 
 (* local bindings *)

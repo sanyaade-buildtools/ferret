@@ -42,7 +42,7 @@ syn keyword ferretTop   in use previous : ; as
 syn keyword ferretKey   let -> exit 
 syn keyword ferretKey   inline private
 syn keyword ferretKey   if else then begin while repeat until again
-syn keyword ferretKey   for each next
+syn keyword ferretKey   for each next break
 
 " Define highlighting
 hi def link ferretNumber      Number

@@ -43,7 +43,7 @@ in Lists use Ext ;
 : elem ( xs x -- bool ) is any ;
 
 -- apply a block for every element in a list
-: iter ( xs xt -- j*x ) let xt -> each i xt apply next ;
+: iter ( xs xt -- j*x ) let f -> each i f apply next ;
 
 -- concatenate two lists
 : append ( xs xs -- xs ) {,} foldr ;
@@ -72,3 +72,28 @@ in Lists use Ext ;
 -- find the best fit in a list
 : select ( xs f -- x ) push uncons pop foldl ;
 
+-- create a new list with an element inserted between others
+: intersperse ( xs x -- xs )
+  let xs x -> xs null if [] else drop [xs tl each x i next] xs hd , then ;
+
+-- split a list into two lists using a predicate
+: partition ( xs p -- xs ys ) 2dup filter -rot remove-if swap ;
+
+-- split a list in two, pivot on the first predicate match
+: take-until ( xs p -- xs ys )
+  let xs f -> [xs each i dup f apply if drop exit then next] ;
+
+-- split a list in two, pivot on the first predicate failure
+: take-while ( xs p -- xs ys ) inverse take-until ;
+
+-- insert an element ascending into a list
+: insert-by ( xs x f -- xs )
+  let x f -> 
+      flet test ( -- ) uncons dup x f apply ->
+    null if [] else test if push x f recurse pop , else , x , then then 
+  ;
+
+: insert ( xs x -- xs ) {<} insert-by ;
+
+-- join two lists together in sorted order
+: merge-with ( xs ys cmp -- xs ) ;

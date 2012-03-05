@@ -126,7 +126,7 @@ and do_while st ts xs =
 and do_until st xs =
   let rec loop st =
     let (flag,st') = coerce bool_of_cell (pop (interp st xs)) in
-    if flag then loop st' else st'
+    if not flag then loop st' else st'
   in
   loop st
 
@@ -154,7 +154,13 @@ and do_each st xs =
 (* reduce a list by interpreting it in a closed environment *)
 and do_expr st = function
   | [] -> { st with stack=List []::st.stack }
-  | xs -> let xs' = (interp { st with stack=[]; cs=[] } xs).stack in
+  | xs -> let xs' = 
+            try
+              (interp { st with stack=[]; cs=[] } xs).stack 
+            with
+                Return st' -> st'.stack
+              | e -> raise e
+          in
           { st with stack=List (List.rev xs')::st.stack }
 
 (* push literal *)

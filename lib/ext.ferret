@@ -3,15 +3,19 @@
 
 in Ext use Core ;
 
--- control stack operations
-: do ( x xt -- x ) swap push apply pop ;
-: lift ( xt -- j*x ) pop let x -> apply x push ;
+-- fetch and store to the control stack
+: get ( cs: x; -- cs: x; x ) pop dup push ;
+: put ( cs: x; y -- cs: y; ) pop drop push ;
 
 -- fmap the top control stack item
-: modify ( xt -- ) pop swap apply push ;
+: modify ( cs: x; xt -- cs: x ) pop swap apply push ;
 
--- assertion
-: >> ( bool -- ) not if "assertion failed" abort then ;
+-- control stack operations
+: do ( x xt -- j*x x ) swap push apply pop ;
+: lift ( cs: x; xt -- cs: x; j*x ) pop let x -> apply x push ;
+
+-- conditional assertion
+: ? ( bool -- ) not if "assertion failed" abort then ;
 
 -- forced failure
 : fail ( -- ) "failure" abort ;
@@ -21,9 +25,6 @@ in Ext use Core ;
 
 -- optionally execute a block
 : maybe ( bool xt -- j*x bool ) swap if apply T else drop F then ;
-
--- try one branch, if fails, do another
-: either ( xt xt -- j*x ) push try if pop drop else pop apply then ;
 
 -- try multiple branches
 : case ( [xt] -- j*x ) each i try if exit then next "case failed" abort ;
