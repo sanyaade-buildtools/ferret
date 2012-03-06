@@ -38,11 +38,11 @@ syn match ferretBin     "[+-]\=0b[01]\+\(\d\|\a\|\k\)\@!"
 
 " Keywords
 syn keyword ferretConst nan inf -inf
-syn keyword ferretTop   in use previous : ; as
-syn keyword ferretKey   let -> exit 
-syn keyword ferretKey   inline private
+syn keyword ferretTop   in use previous as : ; 
+syn keyword ferretKey   let let: ->
 syn keyword ferretKey   if else then begin while repeat until again
-syn keyword ferretKey   for each next break
+syn keyword ferretKey   for each next 
+syn keyword ferretKey   exit
 
 " Define highlighting
 hi def link ferretNumber      Number

@@ -15,7 +15,7 @@ in Ext use Core ;
 : lift ( cs: x; xt -- cs: x; j*x ) pop let x -> apply x push ;
 
 -- conditional assertion
-: ? ( bool -- ) not if "assertion failed" abort then ;
+: assert ( bool -- ) not if "assertion failed" abort then ;
 
 -- forced failure
 : fail ( -- ) "failure" abort ;

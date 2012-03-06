@@ -156,7 +156,7 @@ and do_expr st = function
   | [] -> { st with stack=List []::st.stack }
   | xs -> let xs' = 
             try
-              (interp { st with stack=[]; cs=[] } xs).stack 
+              (interp { st with stack=[] } xs).stack 
             with
                 Return st' -> st'.stack
               | e -> raise e

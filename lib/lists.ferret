@@ -89,7 +89,7 @@ in Lists use Ext ;
 -- insert an element ascending into a list
 : insert-by ( xs x f -- xs )
   let x f -> 
-      flet test ( -- ) uncons dup x f apply ->
+      let: test ( xs -- xs x bool ) uncons dup x f apply ->
     null if [] else test if push x f recurse pop , else , x , then then 
   ;
 
