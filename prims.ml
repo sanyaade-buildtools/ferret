@@ -17,6 +17,7 @@ let prims =
 
     (* kernel prims *)
   ; ("modules",Core.prim_modules)
+  ; ("words",Core.prim_words)
   ; ("abort",Core.prim_abort)
   ; ("clear",Core.prim_clear)
   ; ("i",Core.prim_i)
@@ -47,14 +48,19 @@ let prims =
   ; (",",Core.prim_cons)
   ; ("uncons",Core.prim_uncons)
   ; ("null",Core.prim_null)
+  ; ("len",Core.prim_len)
+  ; ("rev",Core.prim_rev)
   ; ("hd",Core.prim_hd)
   ; ("tl",Core.prim_tl)
   ; ("foldl",Core.prim_foldl)
   ; ("foldr",Core.prim_foldr)
+  ; ("explode",Core.prim_explode)
+  ; ("implode",Core.prim_implode)
 
   (*
     (* pair prims *)
   ; ("@",Core.prim_pair)
+  ; ("unpair",Core.prim_unpair)
   ; ("fst",Core.prim_fst)
   ; ("snd",Core.prim_snd)
   *)

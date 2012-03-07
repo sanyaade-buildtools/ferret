@@ -14,6 +14,7 @@ Ferret is a functional, concatenative, transactional language with roots in Fort
 Here are some simple examples of Ferret in action:
 
 ```
+-- this is a comment describing a ubiquitous example
 "Hello, world!" puts
 ```
 
@@ -98,9 +99,9 @@ clear
 
 Ferret has support for the following types:
 
-* Atoms (symbols with O(1) comparison)
+* Atoms (symbols with O(1) comparison, begin with uppercase letter)
 * Block closures
-* Booleans
+* Booleans (the `T` and `F` atoms)
 * Characters
 * Lists
 * Numbers (integer and float)
@@ -110,48 +111,94 @@ Ferret has support for the following types:
 Here are some examples of these types:
 
 ```
+-- an atom
 Hello
-== Hello
 ```
 
 ```
+-- a block closure
 {10 dup = if "equal" puts then}
-== {10 dup = if "equal" puts then}
 ```
 
 ```
+-- a boolean
 T
-== T
 ```
 
 ```
+-- a character
 'c'
-== 'c'
 ```
 
 ```
+-- a list
 [1 2 3]
-== [1 2 3]
 ```
 
 ```
+-- an integer
 103
-== 103
 ```
 
 ```
+-- a float
 12.e-3
-== 0.012
 ```
 
 ```
-{1 2 +} spawn
-== <pid:1>
-```
-
-```
+-- a string
 "Hello, world!"
-== "Hello, world!"
+```
+
+## Control Flow
+
+Ferret has Forth-like support for control flow operations (conditional branching and looping). These are broken down into the following:
+
+* `if` … [`else` …] `then`
+* `begin` … `again`
+* `begin` … `while` … `repeat`
+* `begin` … `until`
+* `for` … `next`
+* `each` … `next`
+
+Conditional branches are run with `if` statements. They pop the top value (an expected boolean) and evaluate a particular branch of code if it's true (`T`) or false (`F`).
+
+```
+1 2 < if "1 is less than 2" . then
+```
+
+```
+2 < 1 if "It's true!" else "It's false!" then
+```
+
+There are 3 types of general loops in Ferret: infinite, while, and until loops. Infinite loops are created with the `begin` and `again` keywords.
+
+```
+begin "Use C-c C-c to interrupt this loop" . again
+```
+
+While loops keep running while a particular condition holds true, and stops when it fails.
+
+```
+10 begin dup 0> while dup . 1- repeat
+== 0
+```
+
+Until loops run each iteration, and at the end of an iteration stop if the final condition is met.
+
+```
+10 begin dup . 1- dup 0= until
+== -1
+```
+
+Iterating over a range of integers and lists is extremely common and can be done with `for` and `each` loops. While inside an iteration loop, the `i` word can be used to access the current iterator value for this loop. The `for` loop is used to iterate over integers, and counts down from the top stack value to 0. And `each` loops pop a list from the parameter stack and iterate over each of the elements in the list.
+
+```
+10 for i . next
+```
+
+```
+[A B C D] each i . next
 ```
 
 ## Lexical Environments
@@ -163,16 +210,14 @@ Ferret has support for lexical bindings. You can pop values off the stack into b
 == 10
 ```
 
-We pushed 10 to the stack, then we created a new lexical environment in which we popped the top of the stack (10) and bound it to `x`. We then pushed the value of `x` in the body of the scope.
-
-When popping values into a lexical environment, the right-most identifier denotes the top of the stack:
+We pushed 10 to the stack, then we created a new lexical environment in which we popped the top of the stack (10) and bound it to `x`. We then pushed the value of `x` in the body of the scope. When popping values into a lexical environment, the right-most identifier denotes the top of the stack:
 
 ```
 10 2 let x y -> x y **
 == 100.
 ```
 
-As you can see, `x` was bound to 10 and `y` was bound to 2 in the above example.
+Lexical environment can only be created at the top-level or at the top-level of a definition and not within a control-flow statement.
 
 ## Block Closures
 
@@ -186,8 +231,8 @@ Ferret also supports blocks, which are full, lexical block closures (they retain
 Blocks are first-class values and can be passed around on the stack like any other object. When you want, you can `apply` a block to execute it (within the environment it was created in).
 
 ```
-10 let x -> {x x * .} apply
-100
+10 let x -> {x x *} apply
+== 100
   ok
 ```
 
@@ -212,6 +257,8 @@ apply
 == 100
 ```
 
+Like lexical environments, local definitions cannot be created within a control flow statement, but must only exist at the top-level of a definition.
+
 ## Transactions
 
 Ferret is a purely functional and *transactional* language. This means that there are never any side-effects from running Ferret code (outside of I/O), and all code either successfully completes or fails; you can never leave yourself in an unrecoverable state. To see this in action, let's try removing more items from the stack than are actually present.
@@ -224,7 +271,7 @@ drop drop drop drop
 == 3 (+ 2)
 ```
 
-As you can see, when we reached the fourth `drop` call, the parameter stack underflowed and an exception was thrown. However, the system state was returned to the last known, good state before the code began executing. This gives us an opportunity to see determine what we did wrong, correct it, and continue working.
+When we reached the fourth `drop` call, the parameter stack underflowed and an exception was thrown. However, the system state was returned to the last known, good state before the code began executing. This gives us an opportunity to see determine what we did wrong, correct it, and continue working.
 
 Being transactional allows for some very nice features, most of which center around a single function: `try`. The `try` function is like `apply`, except that it also returns `T` or `F` (the true/false values of Ferret) to indicate whether or not the block successfully completed.
 
@@ -264,7 +311,7 @@ Because of this, you can put arbitrary code inside `[ .. ]` to generate lists it
 
 **Note: `for` loops count down instead of up in Ferret.**
 
-You can see how easy it is to create list functions iteratively using list accumulation by taking a look at many of the extended functions in the `Lists` module:
+This makes it very easy iterative functions using list accumulation. Some examples of this can be found in the the extended library `Lists` module:
 
 ```
 -- generate a list of numbers from 1..n

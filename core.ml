@@ -24,6 +24,15 @@ let prim_modules st =
   let xs = List.map (fun (m,_) -> Atom m) st.env in
   { st with stack=List xs::st.stack }
 
+(* list all the words in the dictionary, top modules shadow *)
+let prim_words st =
+  let accum k v map = Atom.IntMap.add k v map in
+  let fold xs (_,map) = Atom.IntMap.fold accum map xs in
+  let dict = List.fold_left fold Atom.IntMap.empty st.env in
+  let words = Atom.IntMap.bindings dict in
+  let names = List.map (fun (_,w) -> Str w.word.Atom.name) words in
+  { st with stack=List (List.sort compare names)::st.stack }
+
 (* raise a failure assertion *)
 let prim_abort st =
   let (s,_) = coerce string_of_cell (pop st) in raise (Abort s)
@@ -181,6 +190,18 @@ let prim_null st =
     | x::xs -> { st with stack=Bool false::List (list_of_cell x)::xs }
     | _ -> raise Stack_underflow
 
+(* get the length of a list *)
+let prim_len st =
+  match st.stack with
+      x::xs -> { st with stack=Num (Int (List.length (list_of_cell x)))::xs }
+    | _ -> raise Stack_underflow
+
+(* reverse a list *)
+let prim_rev st =
+  match st.stack with
+      x::xs -> { st with stack=List (List.rev (list_of_cell x))::xs }
+    | _ -> raise Stack_underflow
+
 (* get the head of a list *)
 let prim_hd st =
   let (xs,st') = coerce list_of_cell (pop st) in
@@ -212,6 +233,16 @@ let prim_foldr st =
   match st.stack with
       xt::a::l::xs -> fold { st with stack=a::xs } xt (list_of_cell l)
     | _ -> raise Stack_underflow
+
+(* explode a list onto the stack *)
+let prim_explode st =
+  match st.stack with
+      x::xs -> { st with stack=(list_of_cell x) @ xs }
+    | _ -> raise Stack_underflow
+
+(* convert the stack into a list *)
+let prim_implode st =
+  { st with stack=[List st.stack] }
 
 (* spawn a new process *)
 let prim_spawn st =

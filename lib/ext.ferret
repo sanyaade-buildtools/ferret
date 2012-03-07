@@ -26,6 +26,10 @@ in Ext use Core ;
 -- optionally execute a block
 : maybe ( bool xt -- j*x bool ) swap if apply T else drop F then ;
 
+-- only perform a branch if the previous one succeeds (or fails)
+: andalso ( xt xt -- j*x ) push try if pop apply else pop drop then ;
+: orelse ( xt xt -- j*x ) push try if pop drop else pop apply then ;
+
 -- try multiple branches
 : case ( [xt] -- j*x ) each i try if exit then next "case failed" abort ;
 

@@ -34,7 +34,7 @@ and num =
 
 (* executable tokens *)
 and xt = 
-  | Word of Atom.t * word
+  | Word of word
   | Local of Atom.t
   | With of Atom.t list * xt list
   | If of xt list * xt list
@@ -50,7 +50,8 @@ and xt =
 
 (* dictionary entry *)
 and word =
-    { mutable def   : def
+    {         word  : Atom.t
+    ; mutable def   : def
     ; mutable flags : code_field list
     }
 
@@ -134,8 +135,11 @@ let new_process () =
 
 (* create a new thread state *)
 let new_thread env =
-  let entry p = { def=Prim p; flags=[] } in
-  let bind m (s,p) = Atom.IntMap.add (Atom.intern s).Atom.i (entry p) m in
+  let entry s p = { word=s; def=Prim p; flags=[] } in
+  let bind m (s,p) = 
+    let s' = Atom.intern s in
+    Atom.IntMap.add s'.Atom.i (entry s' p) m
+  in
   let core = List.fold_left bind Atom.IntMap.empty env in
   { env=[Atom.intern "Core",core]
   ; locals=[]
@@ -177,7 +181,7 @@ let rec mold = function
 (* convert a block to a string *)
 and mold_block env xs =
   let mold_xt = function
-    | Word (atom,_) -> mold_atom env atom
+    | Word (w) -> w.word.Atom.name
     | Local atom -> mold_atom env atom
     | With (ps,xs) -> mold_env env ps xs
     | If (ts,[]) -> mold_flow1 env "if" ts "then"

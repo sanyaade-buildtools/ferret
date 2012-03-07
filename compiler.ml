@@ -146,20 +146,24 @@ let previous st =
 
 (* define a new word in the top library *)
 let bind st s xs =
+  let s' = Atom.intern s in
   let def = 
-      { Cell.def=Cell.Colon xs 
+      { Cell.word=s'
+      ; Cell.def=Cell.Colon xs 
       ; Cell.flags=[]
       } 
   in
   match st.Cell.env with
       [] -> raise No_dictionary
     | (k,d)::ds -> 
-      { st with Cell.env=(k,IntMap.add (intern s).Atom.i def d)::ds }
+      { st with Cell.env=(k,IntMap.add s'.Atom.i def d)::ds }
 
 (* define a constant in the top library *)
 let const st s =
+  let s' = Atom.intern s in
   let def x =
-      { Cell.def=Cell.Const x
+      { Cell.word=s'
+      ; Cell.def=Cell.Const x
       ; Cell.flags=[]
       }
   in
@@ -168,7 +172,7 @@ let const st s =
     | ([],_) -> raise Cell.Stack_underflow
     | (x::xs,(k,d)::ds) -> 
       { st with 
-        Cell.env=(k,IntMap.add (intern s).Atom.i (def x) d)::ds 
+        Cell.env=(k,IntMap.add s'.Atom.i (def x) d)::ds 
       ; Cell.stack=xs
       }
 
@@ -181,7 +185,7 @@ let find st ps s =
   try
     if List.mem s ps
     then Cell.Local s
-    else Cell.Word (s,lookup st.Cell.env)
+    else Cell.Word (lookup st.Cell.env)
   with Not_found -> raise (Unbound_symbol s.Atom.name)
 
 (* parse a program of bindings and executable tokens *)

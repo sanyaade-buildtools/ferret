@@ -62,7 +62,7 @@ and apply st xt =
 
 (* execute a token *)
 and execute st = function
-  | Word (_,word) -> do_word st word
+  | Word (word) -> do_word st word
   | Local (atom) -> do_local st atom
   | With (ps,xs) -> do_with st ps xs
   | If (ts,es) -> do_if st ts es
