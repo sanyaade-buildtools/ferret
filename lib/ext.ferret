@@ -26,9 +26,9 @@ in Ext use Core ;
 -- optionally execute a block
 : maybe ( bool xt -- j*x bool ) swap if apply T else drop F then ;
 
--- only perform a branch if the previous one succeeds (or fails)
-: andalso ( xt xt -- j*x ) push try if pop apply else pop drop then ;
-: orelse ( xt xt -- j*x ) push try if pop drop else pop apply then ;
+-- only perform a branch if the second stack item is true or false
+: andalso ( bool xt -- j*x ) swap if apply else drop F then ;
+: orelse ( bool xt -- j*x ) swap if drop F else apply then ;
 
 -- try multiple branches
 : case ( [xt] -- j*x ) each i try if exit then next "case failed" abort ;
@@ -57,6 +57,7 @@ in Ext use Core ;
 : float? ( x -- bool ) Float type? ;
 : int? ( x -- bool ) Int type? ;
 : list? ( x -- bool ) List type? ;
+: pair? ( x -- bool ) Pair type? ;
 : pid? ( x -- bool ) Pid type? ;
 : string? ( x -- bool ) String type? ;
 : url? ( x -- bool ) Url type? ;

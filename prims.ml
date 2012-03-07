@@ -54,16 +54,16 @@ let prims =
   ; ("tl",Core.prim_tl)
   ; ("foldl",Core.prim_foldl)
   ; ("foldr",Core.prim_foldr)
+  ; ("merge",Core.prim_merge)
+  ; ("sort",Core.prim_sort)
   ; ("explode",Core.prim_explode)
   ; ("implode",Core.prim_implode)
 
-  (*
     (* pair prims *)
   ; ("@",Core.prim_pair)
   ; ("unpair",Core.prim_unpair)
   ; ("fst",Core.prim_fst)
   ; ("snd",Core.prim_snd)
-  *)
 
     (* process prims *)
   ; ("spawn",Core.prim_spawn)

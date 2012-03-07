@@ -18,6 +18,12 @@ in Lists use Ext ;
 -- find the last element of a list
 : last ( xs -- x ) uncons swap each drop i next ;
 
+-- get the nth tail of a list
+: nthtail ( xs n -- xs ) for tl next ;
+
+-- get the nth item of a list
+: nth ( xs n -- x ) nthtail hd ;
+
 -- true if any item in a list matches a predicate
 : any ( xs p -- bool ) let p -> each i p apply if T exit then next F ;
 
@@ -60,6 +66,13 @@ in Lists use Ext ;
 -- find the best fit in a list
 : select ( xs f -- x ) push uncons pop foldl ;
 
+-- permute two lists via a function
+: zip-with ( xs ys f -- xs )
+  let xs ys f -> [xs each i ys each dup i f apply swap next drop next] ;
+
+-- permute two lists with the pair function
+: zip ( xs ys -- xs ) {@} zip-with ;
+
 -- create a new list with an element inserted between others
 : intersperse ( xs x -- xs )
   let xs x -> xs null if [] else drop [xs tl each x i next] xs hd , then ;
@@ -67,12 +80,19 @@ in Lists use Ext ;
 -- split a list into two lists using a predicate
 : partition ( xs p -- xs ys ) 2dup filter -rot remove-if swap ;
 
+-- drop all but the last n items from a list
+: take-last ( xs n -- xs ) 
+  over swap nthtail begin null not while tl push tl pop repeat ;
+
 -- split a list in two, pivot on the first predicate match
 : take-until ( xs p -- xs ys )
   let xs f -> [xs each i dup f apply if drop exit then next] ;
 
 -- split a list in two, pivot on the first predicate failure
 : take-while ( xs p -- xs ys ) inverse take-until ;
+
+-- take the top n items from a list
+: take ( xs n -- xs ) let xs n -> [xs n for uncons swap next drop] ;
 
 -- insert an element ascending into a list
 : insert-by ( xs x f -- xs )
@@ -83,5 +103,3 @@ in Lists use Ext ;
 
 : insert ( xs x -- xs ) {<} insert-by ;
 
--- join two lists together in sorted order
-: merge-with ( xs ys cmp -- xs ) ;

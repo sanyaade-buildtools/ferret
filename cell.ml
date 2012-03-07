@@ -14,6 +14,7 @@ type t =
   | Filespec of filespec
   | List of t list
   | Num of num
+  | Pair of t * t
   | Pid of Thread.t * process_info
   | Str of string
 
@@ -175,6 +176,7 @@ let rec mold = function
   | List xs -> Printf.sprintf "[%s]" (mold_list xs)
   | Num (Float f) -> string_of_float f
   | Num (Int i) -> string_of_int i
+  | Pair (a,b) -> Printf.sprintf "<pair:%s,%s>" (mold a) (mold b)
   | Pid (pid,_) -> mold_unreadable_obj "pid" (string_of_int (Thread.id pid))
   | Str s -> Printf.sprintf "\"%s\"" (String.escaped s)
 
@@ -281,12 +283,10 @@ let out_chan_of_cell = function
   | Port_out (h,_) -> h
   | x -> raise (Not_a_port x)
 *)
-(*
 (* pair coercion *)
 let pair_of_cell = function
   | Pair (a,b) -> a,b
   | x -> raise (Not_a_pair x)
-*)
 
 (* spec coercion *)
 let spec_of_cell = function
@@ -316,6 +316,7 @@ let rec compare_cell = function
   | Filespec a -> fun b -> compare_spec a (spec_of_cell b)
   | List a -> fun b -> compare_list a (list_of_cell b)
   | Num a -> fun b -> compare_num a (num_of_cell b)
+  | Pair (a1,a2) -> fun b -> compare_pair (a1,a2) (pair_of_cell b)
   | Str a -> fun b -> compare a (string_of_cell b)
   | _ -> raise Uncomparable_type
 

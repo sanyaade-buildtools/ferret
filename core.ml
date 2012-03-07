@@ -159,6 +159,7 @@ let prim_type st =
     | List _ -> "List"
     | Num (Float _) -> "Float"
     | Num (Int _) -> "Int"
+    | Pair (_,_) -> "Pair"
     | Pid (_,_) -> "Pid"
     | Str _ -> "String"
   in
@@ -234,6 +235,21 @@ let prim_foldr st =
       xt::a::l::xs -> fold { st with stack=a::xs } xt (list_of_cell l)
     | _ -> raise Stack_underflow
 
+(* merge two lists in ascending order *)
+let prim_merge st =
+  match st.stack with
+      a::b::xs -> let a' = list_of_cell a in
+                  let b' = list_of_cell b in
+                  { st with stack=List (List.merge compare_cell a' b')::xs }
+    | _ -> raise Stack_underflow
+
+(* sort a list in ascending order *)
+let prim_sort st =
+  match st.stack with
+      x::xs -> let x' = list_of_cell x in
+               { st with stack=List (List.sort compare_cell x')::xs }
+    | _ -> raise Stack_underflow
+
 (* explode a list onto the stack *)
 let prim_explode st =
   match st.stack with
@@ -243,6 +259,30 @@ let prim_explode st =
 (* convert the stack into a list *)
 let prim_implode st =
   { st with stack=[List st.stack] }
+
+(* create a pair *)
+let prim_pair st =
+  match st.stack with
+      a::b::xs -> { st with stack=Pair (b,a)::xs }
+    | _ -> raise Stack_underflow
+
+(* break a pair into first and second *)
+let prim_unpair st =
+  match st.stack with
+      x::xs -> let (f,s) = pair_of_cell x in { st with stack=s::f::xs }
+    | _ -> raise Stack_underflow
+
+(* get the first element of a pair *)
+let prim_fst st =
+  match st.stack with
+      x::xs -> let (f,_) = pair_of_cell x in { st with stack=f::xs }
+    | _ -> raise Stack_underflow
+
+(* get the second element of a pair *)
+let prim_snd st =
+  match st.stack with
+      x::xs -> let (_,s) = pair_of_cell x in { st with stack=s::xs }
+    | _ -> raise Stack_underflow
 
 (* spawn a new process *)
 let prim_spawn st =

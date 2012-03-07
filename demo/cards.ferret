@@ -1,0 +1,37 @@
+-- deck of cards demo
+--
+-- Try it out: {5 cards score}
+--
+
+in Cards use Ext Lists ;
+
+-- definition of cards
+: pips #[2 3 4 5 6 7 8 9 Jack Queen King Ace] ;
+: suits #[Clubs Diamonds Hearts Spades] ;
+
+-- create a deck with all the cards in it
+: deck ( -- cs ) pips suits zip ;
+
+-- randomize a deck of cards (cheezy shuffle)
+: shuffle ( cs -- cs' ) {uniform swap @} map sort {snd} map ;
+
+-- deal a random hand of n cards
+: cards ( n -- cs ) push deck shuffle pop take ;
+
+-- generate a bucket of counted pips
+: buckets ( cs -- xs ) let cs -> [pips each cs {fst i =} count-if next] ;
+
+-- check for a pair, set, or quads
+: pair? ( xs -- bool ) {2 =} any ;
+: set? ( xs -- bool ) {3 =} any ;
+: quads? ( xs -- bool ) {4 =} any ;
+: full-house? ( xs -- bool ) dup pair? {set?} andalso ;
+
+-- evaluate a hand of cards
+: score ( cs -- )
+  dup . buckets [ {pair? assert "Pair!"}
+                  {set? assert "Set!"}
+                  {quads? assert "Quads!"}
+                  {drop "High card"}
+                ] case . ;
+
