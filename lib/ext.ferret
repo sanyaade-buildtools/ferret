@@ -3,6 +3,12 @@
 
 in Ext use Core ;
 
+-- additional stack primitives
+: tuck ( a b -- a b a ) swap over ;
+
+-- swap the top of stack with the top of the control stack
+: replace ( cs: a; b -- cs: b; a ) pop swap push ;
+
 -- fetch and store to the control stack
 : get ( cs: x; -- cs: x; x ) pop dup push ;
 : put ( cs: x; y -- cs: y; ) pop drop push ;
@@ -60,6 +66,7 @@ in Ext use Core ;
 : pair? ( x -- bool ) Pair type? ;
 : pid? ( x -- bool ) Pid type? ;
 : string? ( x -- bool ) String type? ;
+: tuple? ( x -- bool ) Tuple type? ;
 : url? ( x -- bool ) Url type? ;
 
 -- apply a block n times
@@ -69,5 +76,5 @@ in Ext use Core ;
 : . ( x -- ) form puts ;
 
 -- time how long a block takes to execute
-: time ( xt -- j*x ) clock {lift {clock - abs} modify} do "Time: " print . ;
+: time ( xt -- j*x ) clock swap do clock swap - "Time: " print . ;
 

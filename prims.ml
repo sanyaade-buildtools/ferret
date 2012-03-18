@@ -44,6 +44,11 @@ let prims =
   ; ("apply",Core.prim_apply)
   ; ("try",Core.prim_try)
 
+    (* record functions *)
+  ; ("make-tuple",Core.prim_make_tuple)
+  ; ("element@",Core.prim_at)
+  ; ("element!",Core.prim_set)
+
     (* list prims *)
   ; (",",Core.prim_cons)
   ; ("uncons",Core.prim_uncons)
@@ -59,12 +64,6 @@ let prims =
   ; ("explode",Core.prim_explode)
   ; ("implode",Core.prim_implode)
 
-    (* pair prims *)
-  ; ("@",Core.prim_pair)
-  ; ("unpair",Core.prim_unpair)
-  ; ("fst",Core.prim_fst)
-  ; ("snd",Core.prim_snd)
-
     (* process prims *)
   ; ("spawn",Core.prim_spawn)
   ; ("self",Core.prim_self)
@@ -74,7 +73,7 @@ let prims =
   ; ("sleep",Core.prim_sleep)
   ; ("yield",Core.prim_yield)
   ; ("!",Core.prim_send)
-  ; ("receive",Core.prim_receive)
+  ; ("@",Core.prim_receive)
     
     (* math prims *)
   ; ("=",Core.prim_eq)
@@ -147,14 +146,11 @@ let prims =
     (* output prims *)
   ; (".s",Core.prim_stack)
   ; (".cs",Core.prim_control_stack)
+  ; ("putc",Core.prim_princ)
   ; ("puts",Core.prim_print print_endline)
   ; ("print",Core.prim_print print_string)
   ; ("prerr",Core.prim_print prerr_endline)
-  ; ("cr",Core.prim_princ '\n')
-  ; ("lf",Core.prim_princ '\r')
-  ; ("tab",Core.prim_princ '\t')
-  ; ("space",Core.prim_princ ' ')
- 
+
     (* io prims *) 
   ; ("file",Core.prim_file) 
   ; ("url",Core.prim_url)

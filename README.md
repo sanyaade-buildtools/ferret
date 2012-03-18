@@ -121,13 +121,8 @@ Hello
 ```
 
 ```
--- a boolean
-T
-```
-
-```
--- a character
-'c'
+-- a tab character
+'\t'
 ```
 
 ```
@@ -181,14 +176,12 @@ While loops keep running while a particular condition holds true, and stops when
 
 ```
 10 begin dup 0> while dup . 1- repeat
-== 0
 ```
 
 Until loops run each iteration, and at the end of an iteration stop if the final condition is met.
 
 ```
 10 begin dup . 1- dup 0= until
-== -1
 ```
 
 Iterating over a range of integers and lists is extremely common and can be done with `for` and `each` loops. While inside an iteration loop, the `i` word can be used to access the current iterator value for this loop. The `for` loop is used to iterate over integers, and counts down from the top stack value to 0. And `each` loops pop a list from the parameter stack and iterate over each of the elements in the list.
@@ -217,7 +210,7 @@ We pushed 10 to the stack, then we created a new lexical environment in which we
 == 100.
 ```
 
-Lexical environment can only be created at the top-level or at the top-level of a definition and not within a control-flow statement.
+Lexical environment can only be created at the top-level of a definition and not within a control-flow statement.
 
 ## Block Closures
 
@@ -273,7 +266,7 @@ drop drop drop drop
 
 When we reached the fourth `drop` call, the parameter stack underflowed and an exception was thrown. However, the system state was returned to the last known, good state before the code began executing. This gives us an opportunity to see determine what we did wrong, correct it, and continue working.
 
-Being transactional allows for some very nice features, most of which center around a single function: `try`. The `try` function is like `apply`, except that it also returns `T` or `F` (the true/false values of Ferret) to indicate whether or not the block successfully completed.
+Being transactional allows for some very nice features, most of which use the function `try`. Like `apply`, it executes a block, but it also returns `T` or `F` (the true/false values of Ferret) to indicate whether or not the block successfully completed.
 
 ```
 {"hi" 2 +} try

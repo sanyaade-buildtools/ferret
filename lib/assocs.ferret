@@ -1,0 +1,30 @@
+-- assocs.ferret
+-- 
+
+in Assocs use Lists Pairs Ext ;
+
+-- a block that compares a key to the fst element of a pair
+: keymatch ( x -- xt ) let x -> {fst x =} ;
+
+-- search for a key in a list of pairs
+: keyfind ( xs k -- pair T | F ) keymatch find ;
+
+-- fetch the value of a key in a list of pairs
+: keysearch ( xs k -- x T | F ) keyfind {snd} maybe ;
+
+-- true if a key exists in an keylist
+: keymember ( xs k -- bool ) keymatch elem ;
+
+-- remove a key pair from a keylist
+: keyremove ( xs k -- xs' ) keymatch remove-if ;
+
+-- a combination of keyfind and keyremove
+: keytake ( xs k -- xs' pair T | xs F )
+  keymatch take-until [{swap uncons push append pop T} {nip F}] case ;
+
+-- add a pair to a list of pairs, remove duplicate keys
+: keystore ( xs k v -- xs' ) over push pair replace keyremove pop , ;
+
+-- map across the values of all keys in a keylist
+: keymap ( xs xt -- xs' ) {push unpair pop apply pair} curry map ;
+

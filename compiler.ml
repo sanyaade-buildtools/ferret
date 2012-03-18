@@ -31,6 +31,7 @@ let lexer =
                      ; "use"
                      ; "previous"
                      ; "as"
+                     ; "newtype"
                      ; ":"
                      ; "let"
                      ; "let:"
@@ -70,6 +71,7 @@ let token =
          ; reserved lexer "use" >> return (Kwd "use")
          ; reserved lexer "previous" >> return (Kwd "previous")
          ; reserved lexer "as" >> return (Kwd "as")
+         ; reserved lexer "newtype" >> return (Kwd "newtype")
          ; reserved lexer ":" >> return (Kwd ":")
          ; reserved lexer "let" >> return (Kwd "let")
          ; reserved lexer "let:" >> return (Kwd "let:")
@@ -113,6 +115,10 @@ let tokenize = parse (between (whitespace lexer) eof (many token))
 let symbol s = 
   if s.[0] >= 'A' && s.[0] <= 'Z' then intern s else raise (Syntax_error s)
 
+(* validate a word name *)
+let word s =
+  if s.[0] < 'A' || s.[0] > 'Z' then intern s else raise (Syntax_error s)
+
 (* a module name from a string *)
 let module_name s =
   if s.[0] < 'A' || s.[0] > 'Z' then raise (Invalid_module s) else intern s
@@ -144,37 +150,70 @@ let previous st =
       a::b::xs -> { st with Cell.env=b::a::xs }
     | _ -> st
 
-(* define a new word in the top library *)
+(* define a new word entry in the top dictionary *)
+let define st def =
+  match st.Cell.env with
+      [] -> raise No_dictionary
+    | (k,d)::ds ->
+      { st with Cell.env=(k,IntMap.add def.Cell.word.Atom.i def d)::ds }
+
+(* define a new colon word in the top library *)
 let bind st s xs =
-  let s' = Atom.intern s in
-  let def = 
+  let s' = word s in
+  let def =
       { Cell.word=s'
       ; Cell.def=Cell.Colon xs 
       ; Cell.flags=[]
-      } 
+      }
   in
-  match st.Cell.env with
-      [] -> raise No_dictionary
-    | (k,d)::ds -> 
-      { st with Cell.env=(k,IntMap.add s'.Atom.i def d)::ds }
+  define st def
 
 (* define a constant in the top library *)
 let const st s =
-  let s' = Atom.intern s in
+  let s' = word s in
   let def x =
       { Cell.word=s'
       ; Cell.def=Cell.Const x
       ; Cell.flags=[]
       }
   in
-  match st.Cell.stack,st.Cell.env with
-      (_,[]) -> raise No_dictionary
-    | ([],_) -> raise Cell.Stack_underflow
-    | (x::xs,(k,d)::ds) -> 
-      { st with 
-        Cell.env=(k,IntMap.add s'.Atom.i (def x) d)::ds 
-      ; Cell.stack=xs
-      }
+  match st.Cell.stack with  
+      x::xs -> define { st with Cell.stack=xs } (def x)
+    | _ -> raise Cell.Stack_underflow
+
+(* field index primitive *)
+let field i st =
+  match st.Cell.stack with
+      x::xs -> { st with Cell.stack=(Cell.tuple_of_cell x).(i)::xs }
+    | _ -> raise Cell.Stack_underflow
+
+(* create a tuple of a given size *)
+let make_tuple i st =
+  let arr = Array.make i Cell.Unit in
+  let st' = ref st in
+  for n = i - 1 downto 0 do
+    match (!st').Cell.stack with
+        x::xs -> begin arr.(n) <- x; st' := { !st' with Cell.stack=xs } end
+      | _ -> raise Cell.Stack_underflow
+  done;
+  { !st' with Cell.stack=Cell.Tuple arr::(!st').Cell.stack }
+
+(* define a new tuple type constructor and field accessors *)
+let newtype st s ms =
+  let len = List.length ms in
+  let make_field (i,st) m =
+    let st' = define st { Cell.word=m
+                        ; Cell.def=Cell.Prim (field i)
+                        ; Cell.flags=[]
+                        }
+    in
+    (i+1,st')
+  in
+  let st' = snd (List.fold_left make_field (0,st) ms) in
+  define st' { Cell.word=word s
+             ; Cell.def=Cell.Prim (make_tuple len)
+             ; Cell.flags=[]
+             }
 
 (* lookup a word in the dictionary *)
 let find st ps s =
@@ -194,6 +233,7 @@ let rec prog st = parser
   | [< 'Kwd "use"; ms=modules; xs,st'=prog (use st ms) >] -> xs,st'
   | [< 'Kwd "previous"; xs,st'=prog (previous st) >] -> xs,st'
   | [< 'Kwd "as"; 'Ident s; xs,st'=prog (const st s) >] -> xs,st'
+  | [< 'Kwd "newtype"; 'Ident s; ms=fields; xs,st'=prog (newtype st s ms) >] -> xs,st'
   | [< 'Kwd ":"; 'Ident s; xs=body st []; xs,st'=prog (bind st s xs) >] -> xs,st'
   | [< 'Kwd "let:"; 'Ident s; xs=flet st []; ys=body (bind st s xs) []; xs',st'=prog st >] ->
     Cell.With ([],ys)::xs',st'
@@ -206,6 +246,12 @@ let rec prog st = parser
 (* module list *)
 and modules = parser
   | [< 'Ident x; xs=modules >] -> x::xs
+  | [< 'Kwd ";" >] -> []
+  | [< >] -> []
+
+(* newtype record member fields *)
+and fields = parser
+  | [< 'Ident x; xs=fields >] -> (word x)::xs
   | [< 'Kwd ";" >] -> []
   | [< >] -> []
 
@@ -236,7 +282,8 @@ and locals = parser
 and factor st ps = parser
   | [< 'Kwd "exit" >] -> Cell.Exit
   | [< 'Kwd "recurse" >] -> Cell.Recurse
-  | [< 'Kwd "["; xs=expr st ps >] -> Cell.Expr xs
+  | [< 'Kwd "["; xs=expr st ps >] -> Cell.ListExpr xs
+  | [< 'Kwd "#["; xs=expr st ps >] -> Cell.TupleExpr xs
   | [< xt=branch st ps >] -> xt
   | [< xt=xt st ps >] -> xt
 
@@ -286,7 +333,7 @@ and xt st ps = parser
 and literal st ps = parser
   | [< 'Kwd "T" >] -> Cell.Bool true
   | [< 'Kwd "F" >] -> Cell.Bool false
-  | [< 'Kwd "#["; xs=list st ps >] -> Cell.List xs
+  (*| [< 'Kwd "#["; xs=list st ps >] -> Cell.List xs*)
   | [< 'Kwd "{"; xs=block st ps >] -> Cell.Block ([],xs)
   | [< 'Float f >] -> Cell.Num (Cell.Float f)
   | [< 'Int i >] -> Cell.Num (Cell.Int i)

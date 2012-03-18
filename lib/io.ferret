@@ -1,13 +1,21 @@
-;; io.ferret
-;;
+-- io.ferret
+-- 
 
-;; print to stdout, but return original value
-probe: fn [x] [
-  print x x
-]
+in IO use Ext ;
 
-;; prompt the user for a response
-ask: fn [query] [
-  prin query
-  input
-]
+-- some common characters
+: cr ( -- ) '\n' putc ;
+: tab ( -- ) '\t' putc ;
+: space ( -- ) ' ' putc ;
+
+-- a few characters
+: crs ( n -- ) for cr next ;
+: tabs ( n -- ) for tab next ;
+: spaces ( n -- ) for space next ;
+
+-- display the top of the stack without removing it
+: ? ( x -- x ) dup . ;
+
+-- prompt the user for a line
+: ask ( prompt -- s ) print input ;
+

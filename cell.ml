@@ -14,9 +14,10 @@ type t =
   | Filespec of filespec
   | List of t list
   | Num of num
-  | Pair of t * t
   | Pid of Thread.t * process_info
   | Str of string
+  | Tuple of t array
+  | Unit
 
 (* location spec *)
 and filespec =
@@ -44,7 +45,8 @@ and xt =
   | Loop of xt list
   | For of xt list
   | Each of xt list
-  | Expr of xt list
+  | ListExpr of xt list
+  | TupleExpr of xt list
   | Lit of t
   | Exit
   | Recurse
@@ -115,17 +117,19 @@ exception Not_a_float of t
 exception Not_a_int of t
 exception Not_a_list of t
 exception Not_a_number of t
-exception Not_a_pair of t
 exception Not_a_port of t
 exception Not_a_port_in of t
 exception Not_a_port_out of t
 exception Not_a_process of t
 exception Not_a_spec of t
 exception Not_a_string of t
+exception Not_a_tuple of t
 exception Not_a_url of t
 
 (* compare exceptions *)
 exception Uncomparable_type
+exception Compare_fail of int
+exception Type_mismatch of t * string
 
 (* create a new coroutine process *)
 let new_process () =
@@ -176,9 +180,10 @@ let rec mold = function
   | List xs -> Printf.sprintf "[%s]" (mold_list xs)
   | Num (Float f) -> string_of_float f
   | Num (Int i) -> string_of_int i
-  | Pair (a,b) -> Printf.sprintf "<pair:%s,%s>" (mold a) (mold b)
   | Pid (pid,_) -> mold_unreadable_obj "pid" (string_of_int (Thread.id pid))
   | Str s -> Printf.sprintf "\"%s\"" (String.escaped s)
+  | Tuple t -> mold_tuple t
+  | Unit -> "()"
 
 (* convert a block to a string *)
 and mold_block env xs =
@@ -193,7 +198,8 @@ and mold_block env xs =
     | Loop xs -> mold_flow1 env "begin" xs "again"
     | For xs -> mold_flow1 env "for" xs "next"
     | Each xs -> mold_flow1 env "each" xs "next"
-    | Expr xs -> Printf.sprintf "[%s]" (mold_block env xs)
+    | ListExpr xs -> Printf.sprintf "[%s]" (mold_block env xs)
+    | TupleExpr xs -> Printf.sprintf "#[%s]" (mold_block env xs)
     | Lit x -> mold x
     | Exit -> "exit"
     | Recurse -> "recurse"
@@ -216,6 +222,18 @@ and mold_flow1 env start xs close =
 (* e.g. if .. else .. then *)
 and mold_flow2 env start ts mid es close =
   String.concat " " [start;mold_block env ts;mid;mold_block env es;close]
+
+(* convert a record to a string *)
+and mold_tuple r =
+  let len = Array.length r in
+  let rec mold_elts i =
+    if i < len - 1
+    then Printf.sprintf "%s %s" (mold r.(i)) (mold_elts (i+1))
+    else mold r.(i)
+  in
+  if len = 0 
+  then "#[]"
+  else Printf.sprintf "#[%s]" (mold_elts 0)
 
 (* convert a list of cells to a string *)
 and mold_list xs = String.concat " " (List.map mold xs)
@@ -283,11 +301,6 @@ let out_chan_of_cell = function
   | Port_out (h,_) -> h
   | x -> raise (Not_a_port x)
 *)
-(* pair coercion *)
-let pair_of_cell = function
-  | Pair (a,b) -> a,b
-  | x -> raise (Not_a_pair x)
-
 (* spec coercion *)
 let spec_of_cell = function
   | Filespec x -> x
@@ -303,6 +316,11 @@ let thread_of_cell = function
   | Pid (thread,pinfo) -> thread,pinfo
   | x -> raise (Not_a_process x)
 
+(* tuple record coercion *)
+let tuple_of_cell = function
+  | Tuple r -> r
+  | x -> raise (Not_a_tuple x)
+
 (* url coercion *)
 let url_of_cell = function
   | Filespec (Url url) -> url
@@ -316,8 +334,8 @@ let rec compare_cell = function
   | Filespec a -> fun b -> compare_spec a (spec_of_cell b)
   | List a -> fun b -> compare_list a (list_of_cell b)
   | Num a -> fun b -> compare_num a (num_of_cell b)
-  | Pair (a1,a2) -> fun b -> compare_pair (a1,a2) (pair_of_cell b)
   | Str a -> fun b -> compare a (string_of_cell b)
+  | Tuple a -> fun b -> compare_tuple a (tuple_of_cell b)
   | _ -> raise Uncomparable_type
 
 (* compare a list of cells *)
@@ -331,11 +349,18 @@ and compare_list a b =
           0 -> compare_list xs ys
         | x -> x
 
-(* compare two pairs *)
-and compare_pair (a1,a2) (b1,b2) =
-  match compare_cell a1 b1 with
-      0 -> compare_cell a2 b2
-    | x -> x
+(* compare two tuples *)
+and compare_tuple a b =
+  try
+    for i = 0 to Array.length a - 1 do
+      match compare_cell a.(i) b.(i) with
+          0 -> ()
+        | x -> raise (Compare_fail x)
+    done;
+    compare (Array.length a) (Array.length b)
+  with 
+      Compare_fail x -> x
+    | e -> raise e
 
 (* compare numerics *)
 and compare_num a b =

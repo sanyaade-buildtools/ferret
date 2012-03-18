@@ -139,7 +139,32 @@ let prim_try st =
       try 
         let st' = apply { st with stack=xs } b in
         { st' with stack=Bool true::st'.stack }
-      with _ -> { st with stack=Bool false::xs }
+      with _ -> { st with stack=Bool false::xs } 
+
+(* create a new tuple instance *) 
+let prim_make_tuple st =
+  match st.stack with
+      i::xs -> Compiler.make_tuple (int_of_cell i) { st with stack=xs }
+    | _ -> raise Stack_underflow 
+
+(* get an element in a tuple *)
+let prim_at st =
+  let index r i = (tuple_of_cell r).(int_of_cell i) in
+  match st.stack with
+      i::r::xs -> { st with stack=index r i::xs }
+    | _ -> raise Stack_underflow
+
+(* create a copy of a record, mutate an index, return copy *)
+let prim_set st =
+  let mut r i x = 
+    let arr = tuple_of_cell r in
+    let copy = Array.copy arr in
+    copy.(int_of_cell i) <- x;
+    Tuple copy
+  in
+  match st.stack with
+      i::x::r::xs -> { st with stack=mut r i x::xs }
+    | _ -> raise Stack_underflow
 
 (* push the current iterator *)
 let prim_i st =
@@ -150,21 +175,22 @@ let prim_i st =
 (* return the type of a cell *)
 let prim_type st =
   let typeof = function
-    | Atom _ -> "Atom"
-    | Block (_,_) -> "Block"
-    | Bool _ -> "Bool"
-    | Char _ -> "Char"
-    | Filespec (File _) -> "File"
-    | Filespec (Url _) -> "Url"
-    | List _ -> "List"
-    | Num (Float _) -> "Float"
-    | Num (Int _) -> "Int"
-    | Pair (_,_) -> "Pair"
-    | Pid (_,_) -> "Pid"
-    | Str _ -> "String"
+    | Atom _ -> Atom.intern "Atom"
+    | Block (_,_) -> Atom.intern "Block"
+    | Bool _ -> Atom.intern "Bool"
+    | Char _ -> Atom.intern "Char"
+    | Filespec (File _) -> Atom.intern "File"
+    | Filespec (Url _) -> Atom.intern "Url"
+    | List _ -> Atom.intern "List"
+    | Num (Float _) -> Atom.intern "Float"
+    | Num (Int _) -> Atom.intern "Int"
+    | Pid (_,_) -> Atom.intern "Pid"
+    | Str _ -> Atom.intern "String"
+    | Tuple _ -> Atom.intern "Tuple"
+    | Unit -> Atom.intern "Unit"
   in
   match st.stack with
-      x::xs -> { st with stack=Atom (Atom.intern (typeof x))::xs }
+      x::xs -> { st with stack=Atom (typeof x)::xs }
     | _ -> raise Stack_underflow
 
 (* return the time elapsed in this thread *)
@@ -259,30 +285,6 @@ let prim_explode st =
 (* convert the stack into a list *)
 let prim_implode st =
   { st with stack=[List st.stack] }
-
-(* create a pair *)
-let prim_pair st =
-  match st.stack with
-      a::b::xs -> { st with stack=Pair (b,a)::xs }
-    | _ -> raise Stack_underflow
-
-(* break a pair into first and second *)
-let prim_unpair st =
-  match st.stack with
-      x::xs -> let (f,s) = pair_of_cell x in { st with stack=s::f::xs }
-    | _ -> raise Stack_underflow
-
-(* get the first element of a pair *)
-let prim_fst st =
-  match st.stack with
-      x::xs -> let (f,_) = pair_of_cell x in { st with stack=f::xs }
-    | _ -> raise Stack_underflow
-
-(* get the second element of a pair *)
-let prim_snd st =
-  match st.stack with
-      x::xs -> let (_,s) = pair_of_cell x in { st with stack=s::xs }
-    | _ -> raise Stack_underflow
 
 (* spawn a new process *)
 let prim_spawn st =
@@ -626,9 +628,10 @@ let prim_print f st =
     | _ -> raise Stack_underflow
 
 (* output a character to stdout *)
-let prim_princ c st =
-  print_char c; 
-  st
+let prim_princ st =
+  match st.stack with
+      x::xs -> (print_char (char_of_cell x); { st with stack=xs })
+    | _ -> raise Stack_underflow
 
 (* coerce a string to a filespec *)
 let prim_file st =

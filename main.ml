@@ -46,8 +46,11 @@ let user = Atom.intern "User",Atom.IntMap.empty
 let load_ext_libs st =
   let load st f = eval st (file_in f) in
   let st' = List.fold_left load st [ "lib/ext.ferret"
+                                   ; "lib/io.ferret"
                                    ; "lib/math.ferret"
+                                   ; "lib/pairs.ferret"
                                    ; "lib/lists.ferret"
+                                   ; "lib/assocs.ferret"
                                    ]
   in
   { st' with Cell.env=user::st'.Cell.env }

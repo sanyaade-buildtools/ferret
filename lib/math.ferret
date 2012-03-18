@@ -25,3 +25,4 @@ in Math use Ext ;
 -- common random functions
 : uniform ( -- float ) 1.0 random ;
 : choice ( -- bool ) 2 random 0= ;
+

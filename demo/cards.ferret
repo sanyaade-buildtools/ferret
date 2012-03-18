@@ -29,9 +29,10 @@ in Cards use Ext Lists ;
 
 -- evaluate a hand of cards
 : score ( cs -- )
-  dup . buckets [ {pair? assert "Pair!"}
+  dup . buckets [ {quads? assert "Quads!"}
+                  {full-house? assert "Full house!"}
                   {set? assert "Set!"}
-                  {quads? assert "Quads!"}
+                  {pair? assert "Pair!"}
                   {drop "High card"}
                 ] case . ;
 

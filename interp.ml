@@ -71,7 +71,8 @@ and execute st = function
   | Loop (xs) -> do_loop st xs
   | For (xs) -> do_for st xs
   | Each (xs) -> do_each st xs
-  | Expr (xs) -> do_expr st xs
+  | ListExpr (xs) -> do_expr make_list st xs
+  | TupleExpr (xs) -> do_expr make_tuple st xs
   | Lit (x) -> do_push st x
   | Recurse -> do_recurse st
   | Exit -> do_exit st
@@ -152,16 +153,16 @@ and do_each st xs =
   { loop st' cs with i=st.i }
 
 (* reduce a list by interpreting it in a closed environment *)
-and do_expr st = function
+and do_expr f st = function
   | [] -> { st with stack=List []::st.stack }
-  | xs -> let xs' = 
+  | xs -> let st' = 
             try
-              (interp { st with stack=[] } xs).stack 
+              interp { st with stack=[]; cs=[] } xs
             with
-                Return st' -> st'.stack
+                Return st' -> st'
               | e -> raise e
           in
-          { st with stack=List (List.rev xs')::st.stack }
+          f st (List.rev st'.stack)
 
 (* push literal *)
 and do_push st x = { st with stack=reduce st x::st.stack }
@@ -176,6 +177,14 @@ and do_exit st = raise (Return st)
 and reduce st = function
   | Block (_,xs) -> Block (st.locals,xs)
   | (x) -> x
+
+(* create a list from an expression list *)
+and make_list st xs =
+  { st with stack=List xs::st.stack }
+
+(* create a tuple from an expression list *)
+and make_tuple st xs =
+  { st with stack=Tuple (Array.of_list xs)::st.stack }
 
 (* run a block until completed *)
 let run_thread st block =

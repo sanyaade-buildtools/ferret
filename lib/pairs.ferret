@@ -1,0 +1,17 @@
+-- pairs.ferret
+--
+
+in Pairs use Ext ;
+
+-- create a new pair type
+newtype pair fst snd ;
+
+-- split a pair into its first and second elements
+: unpair ( pair -- f s ) dup fst swap snd ;
+
+-- set the first element of a pair
+: fst! ( pair x -- pair' ) 0 element! ;
+
+-- set the second element of a pair
+: snd! ( pair x -- pair' ) 1 element! ;
+
