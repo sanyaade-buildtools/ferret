@@ -166,6 +166,42 @@ let prim_set st =
       i::x::r::xs -> { st with stack=mut r i x::xs }
     | _ -> raise Stack_underflow
 
+(* pair top two elements *)
+let prim_pair st =
+  match st.stack with
+      s::f::xs -> { st with stack=Pair (f,s)::xs }
+    | _ -> raise Stack_underflow
+
+(* split pair elements *)
+let prim_unpair st =
+  match st.stack with
+      p::xs -> let f,s = pair_of_cell p in { st with stack=s::f::xs }
+    | _ -> raise Stack_underflow
+
+(* get the fist element of a pair *)
+let prim_fst st =
+  match st.stack with
+      p::xs -> let f,_ = pair_of_cell p in { st with stack=f::xs }
+    | _ -> raise Stack_underflow
+
+(* get the second element of a pair *)
+let prim_snd st =
+  match st.stack with
+      p::xs -> let _,s = pair_of_cell p in { st with stack=s::xs }
+    | _ -> raise Stack_underflow
+
+(* create a new tuple with a new fst element *)
+let prim_set_fst st =
+  match st.stack with
+      x::p::xs -> let _,s = pair_of_cell p in { st with stack=Pair (x,s)::xs }
+    | _ -> raise Stack_underflow
+
+(* create a new tuple with a new snd element *)
+let prim_set_snd st =
+  match st.stack with
+      x::p::xs -> let f,_ = pair_of_cell p in { st with stack=Pair (f,x)::xs }
+    | _ -> raise Stack_underflow
+
 (* push the current iterator *)
 let prim_i st =
   match st.i with
@@ -184,7 +220,9 @@ let prim_type st =
     | List _ -> Atom.intern "List"
     | Num (Float _) -> Atom.intern "Float"
     | Num (Int _) -> Atom.intern "Int"
+    | Pair (_,_) -> Atom.intern "Pair"
     | Pid (_,_) -> Atom.intern "Pid"
+    | Re (_,_) -> Atom.intern "Re"
     | Str _ -> Atom.intern "String"
     | Tuple _ -> Atom.intern "Tuple"
     | Unit -> Atom.intern "Unit"
@@ -610,6 +648,59 @@ let prim_strip st =
       i::x::xs -> { st with stack=strip i x xs }
     | _ -> raise Stack_underflow
 
+(* extract a character in a sting *)
+let prim_char st =
+  let char i s = Char (string_of_cell s).[int_of_cell i] in
+  match st.stack with
+      i::s::xs -> { st with stack=(char i s)::xs }
+    | _ -> raise Stack_underflow
+
+(* set a character in a string *)
+let prim_set_char st =
+  let char c i s = 
+    let dup = String.copy (string_of_cell s) in
+    dup.[int_of_cell i] <- char_of_cell c;
+    Str dup
+  in
+  match st.stack with
+      i::s::c::xs -> { st with stack=(char c i s)::xs }
+    | _ -> raise Stack_underflow
+
+(* match a regex to a string *)
+let prim_match st =
+  let test r s = 
+    Str.string_match (regex_of_cell r) (string_of_cell s) 0 
+  in
+  match st.stack with
+      r::s::xs -> { st with stack=Bool (test r s)::xs }
+    | _ -> raise Stack_underflow
+
+(* scan forward through a string for a regex match, return pos T or F *)
+let prim_scan st =
+  let scan r s xs =
+    try
+      let i = Str.search_forward (regex_of_cell r) (string_of_cell s) 0 in
+      Bool true::Num (Int i)::xs
+    with Not_found -> Bool false::xs
+  in
+  match st.stack with
+      r::s::xs -> { st with stack=scan r s xs }
+    | _ -> raise Stack_underflow
+
+(* scan backwards through a string for a regex match *)
+let prim_rscan st =
+  let scan r s xs =
+    try
+      let s = string_of_cell s in
+      let n = String.length s in
+      let i = Str.search_backward (regex_of_cell r) s (n - 1) in
+      Bool true::Num (Int i)::xs
+    with Not_found -> Bool false::xs
+  in
+  match st.stack with
+      r::s::xs -> { st with stack=scan r s xs }
+    | _ -> raise Stack_underflow
+
 (* dump the stack to stdout *)
 let prim_stack st =
   if st.cs <> [] then Terminal.show_rev_stack st.cs;
@@ -648,7 +739,11 @@ let prim_url st =
   
 (* read a line of input from stdin *)
 let prim_input st =
-  { st with stack=Str (read_line ())::st.stack }
+  try
+    { st with stack=Bool true::Str (read_line ())::st.stack }
+  with
+      End_of_file -> { st with stack=Bool false::st.stack }
+    | e -> raise e
 
 (* read from a filespec *)
 let prim_read st =

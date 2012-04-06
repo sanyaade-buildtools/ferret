@@ -46,8 +46,16 @@ let prims =
 
     (* record functions *)
   ; ("make-tuple",Core.prim_make_tuple)
-  ; ("element@",Core.prim_at)
+  ; ("element",Core.prim_at)
   ; ("element!",Core.prim_set)
+
+    (* pair prims *)
+  ; ("pair",Core.prim_pair)
+  ; ("unpair",Core.prim_unpair)
+  ; ("fst",Core.prim_fst)
+  ; ("snd",Core.prim_snd)
+  ; ("fst!",Core.prim_set_fst)
+  ; ("snd!",Core.prim_set_snd)
 
     (* list prims *)
   ; (",",Core.prim_cons)
@@ -142,6 +150,13 @@ let prims =
   ; ("upcase",Core.prim_uppercase)
   ; ("downcase",Core.prim_lowercase)
   ; ("/string",Core.prim_strip)
+  ; ("c@",Core.prim_char)
+  ; ("c!",Core.prim_set_char)
+  
+    (* re prims *)
+  ; ("match",Core.prim_match)
+  ; ("scan",Core.prim_scan)
+  ; ("rscan",Core.prim_rscan)
 
     (* output prims *)
   ; (".s",Core.prim_stack)

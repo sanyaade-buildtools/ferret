@@ -1,7 +1,7 @@
 -- lists.ferret
 --
 
-in Lists use Pairs Ext ;
+in Lists use Ext ;
 
 -- create a list from a single item
 : list ( x -- xs ) [] swap , ;
@@ -102,4 +102,7 @@ in Lists use Pairs Ext ;
 
 -- insert an element into a list in ascending order
 : insert ( xs x -- xs' ) {<} insert-with ;
+
+-- randomize the elements of a list
+: randomize ( xs -- xs' ) {uniform swap pair} map sort {snd} map ;
 

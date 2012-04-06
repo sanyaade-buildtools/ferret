@@ -1,7 +1,7 @@
 -- assocs.ferret
 -- 
 
-in Assocs use Lists Pairs Ext ;
+in Assocs use Lists Ext ;
 
 -- a block that compares a key to the fst element of a pair
 : keymatch ( x -- xt ) let x -> {fst x =} ;

@@ -6,15 +6,20 @@
  * compiler.ml
  *)
 
-open Genlex
 open Lexer
 open Parsec
 open Atom
+
+type lexeme =
+  | Kwd of string
+  | Ident of string
+  | Cell of Cell.t
 
 exception Invalid_module of string
 exception Module_not_found of string
 exception No_dictionary
 exception Parse_error
+exception Regex_parse_error of string
 exception Syntax_error of string
 exception Unbound_symbol of string
 
@@ -67,6 +72,22 @@ let lexer =
 
 (* parse a single token *)
 let token = 
+  (* create a numeric literal lexeme *)
+  let number = function
+    | Left f -> return (Cell (Cell.Num (Cell.Float f)))
+    | Right i -> return (Cell (Cell.Num (Cell.Int i)))
+  in
+
+  (* compile regular expression *)
+  let make_re case_fold s =
+    try
+      if case_fold
+      then return (Cell (Cell.Re (s,Str.regexp_case_fold s)))
+      else return (Cell (Cell.Re (s,Str.regexp s)))
+    with Failure reason -> raise (Regex_parse_error reason) 
+  in
+
+  (* parse the next token *)
   choose [ reserved lexer "in" >> return (Kwd "in")
          ; reserved lexer "use" >> return (Kwd "use")
          ; reserved lexer "previous" >> return (Kwd "previous")
@@ -92,19 +113,20 @@ let token =
          ; reserved lexer "for" >> return (Kwd "for")
          ; reserved lexer "each" >> return (Kwd "each")
          ; reserved lexer "next" >> return (Kwd "next")
-         ; reserved lexer "F" >> return (Kwd "F")
-         ; reserved lexer "T" >> return (Kwd "T")
-         ; reserved lexer "nan" >> return (Float nan)
-         ; reserved lexer "inf" >> return (Float infinity)
-         ; reserved lexer "-inf" >> return (Float neg_infinity)
+         ; reserved lexer "F" >> return (Cell (Cell.Bool false))
+         ; reserved lexer "T" >> return (Cell (Cell.Bool true))
+         ; reserved lexer "nan" >> return (Cell (Cell.Num (Cell.Float nan)))
+         ; reserved lexer "inf" >> return (Cell (Cell.Num (Cell.Float infinity)))
+         ; reserved lexer "-inf" >> return (Cell (Cell.Num (Cell.Float neg_infinity)))
          ; char '#' >> reserved_op lexer "[" >> return (Kwd "#[")
          ; reserved_op lexer "[" >> return (Kwd "[")
          ; reserved_op lexer "]" >> return (Kwd "]")
          ; reserved_op lexer "{" >> return (Kwd "{")
          ; reserved_op lexer "}" >> return (Kwd "}")
-         ; attempt (real_or_natural lexer)
-         ; string_lit lexer >>= (fun s -> return (String s))
-         ; char_lit lexer >>= (fun c -> return (Char c))
+         ; attempt (real_or_natural lexer) >>= number
+         ; char '#' >> string_lit lexer >>= (make_re false)
+         ; string_lit lexer >>= (fun s -> return (Cell (Cell.Str s)))
+         ; char_lit lexer >>= (fun c -> return (Cell (Cell.Char c)))
          ; identifier lexer >>= (fun s -> return (Ident s))
          ]
 
@@ -331,14 +353,9 @@ and xt st ps = parser
 
 (* literal constant *)
 and literal st ps = parser
-  | [< 'Kwd "T" >] -> Cell.Bool true
-  | [< 'Kwd "F" >] -> Cell.Bool false
+  | [< 'Cell x >] -> x
   (*| [< 'Kwd "#["; xs=list st ps >] -> Cell.List xs*)
   | [< 'Kwd "{"; xs=block st ps >] -> Cell.Block ([],xs)
-  | [< 'Float f >] -> Cell.Num (Cell.Float f)
-  | [< 'Int i >] -> Cell.Num (Cell.Int i)
-  | [< 'String s >] -> Cell.Str s
-  | [< 'Char c >] -> Cell.Char c
   | [< 'Ident s >] -> Cell.Atom (symbol s)
 
 (* list expression *)

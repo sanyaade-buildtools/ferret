@@ -1,22 +1,16 @@
 -- deck of cards demo
 --
--- Try it out: {5 cards score}
+-- Try it out: 
 --
 
 in Cards use Ext Lists ;
 
 -- definition of cards
-: pips #[2 3 4 5 6 7 8 9 Jack Queen King Ace] ;
-: suits #[Clubs Diamonds Hearts Spades] ;
+: pips ( -- xs ) [2 3 4 5 6 7 8 9 Jack Queen King Ace] ;
+: suits ( -- xs ) [Clubs Diamonds Hearts Spades] ;
 
 -- create a deck with all the cards in it
 : deck ( -- cs ) pips suits zip ;
-
--- randomize a deck of cards (cheezy shuffle)
-: shuffle ( cs -- cs' ) {uniform swap @} map sort {snd} map ;
-
--- deal a random hand of n cards
-: cards ( n -- cs ) push deck shuffle pop take ;
 
 -- generate a bucket of counted pips
 : buckets ( cs -- xs ) let cs -> [pips each cs {fst i =} count-if next] ;
@@ -35,4 +29,7 @@ in Cards use Ext Lists ;
                   {pair? assert "Pair!"}
                   {drop "High card"}
                 ] case . ;
+
+-- shuffle a deck and deal 5 hands, scoring each
+: deal ( -- ) deck randomize {5 take score} 5 times drop ;
 

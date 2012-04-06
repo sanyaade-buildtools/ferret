@@ -45,7 +45,7 @@ in Ext use Core ;
 -- composing blocks
 : compose ( xt xt -- xt ) let a b -> {a apply b apply} ;
 
--- flip the arguments to a function
+-- exchange the arguments to a function
 : flip ( xt -- xt ) {swap} swap compose ;
 
 -- logical inverse the result of a function

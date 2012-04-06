@@ -8,6 +8,9 @@
 
 open Parsec
 
+(* simple union type *)
+type ('a,'b) either = Left of 'a | Right of 'b
+
 (* function that accepts a parser and returns a value *)
 type 'a parse_combinator = parse_stream option -> 'a parse_state
 
@@ -130,8 +133,8 @@ let real =
 
 (* parse a real or natural *)
 let real_or_natural l =
-  let num = choose [ real >>= (fun f -> return (Genlex.Float f))
-                   ; natural >>= (fun i -> return (Genlex.Int i))
+  let num = choose [ real >>= (fun f -> return (Left f))
+                   ; natural >>= (fun i -> return (Right i))
                    ]
   in
   lexeme l (num >>= fun x -> not_followed_by l.ident_start >> return x)

@@ -48,7 +48,6 @@ let load_ext_libs st =
   let st' = List.fold_left load st [ "lib/ext.ferret"
                                    ; "lib/io.ferret"
                                    ; "lib/math.ferret"
-                                   ; "lib/pairs.ferret"
                                    ; "lib/lists.ferret"
                                    ; "lib/assocs.ferret"
                                    ]

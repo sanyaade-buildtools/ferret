@@ -14,7 +14,9 @@ type t =
   | Filespec of filespec
   | List of t list
   | Num of num
+  | Pair of t * t
   | Pid of Thread.t * process_info
+  | Re of string * Str.regexp
   | Str of string
   | Tuple of t array
   | Unit
@@ -117,10 +119,12 @@ exception Not_a_float of t
 exception Not_a_int of t
 exception Not_a_list of t
 exception Not_a_number of t
+exception Not_a_pair of t
 exception Not_a_port of t
 exception Not_a_port_in of t
 exception Not_a_port_out of t
 exception Not_a_process of t
+exception Not_a_regex of t
 exception Not_a_spec of t
 exception Not_a_string of t
 exception Not_a_tuple of t
@@ -180,7 +184,9 @@ let rec mold = function
   | List xs -> Printf.sprintf "[%s]" (mold_list xs)
   | Num (Float f) -> string_of_float f
   | Num (Int i) -> string_of_int i
+  | Pair (f,s) -> Printf.sprintf "(%s @ %s)" (mold f) (mold s)
   | Pid (pid,_) -> mold_unreadable_obj "pid" (string_of_int (Thread.id pid))
+  | Re (s,_) -> Printf.sprintf "#\"%s\"" (String.escaped s)
   | Str s -> Printf.sprintf "\"%s\"" (String.escaped s)
   | Tuple t -> mold_tuple t
   | Unit -> "()"
@@ -301,6 +307,16 @@ let out_chan_of_cell = function
   | Port_out (h,_) -> h
   | x -> raise (Not_a_port x)
 *)
+(* pair coercion *)
+let pair_of_cell = function
+  | Pair (f,s) -> f,s
+  | x -> raise (Not_a_pair x)
+
+(* regex coercion *)
+let regex_of_cell = function
+  | Re (_,re) -> re
+  | x -> raise (Not_a_regex x)
+
 (* spec coercion *)
 let spec_of_cell = function
   | Filespec x -> x
@@ -334,6 +350,7 @@ let rec compare_cell = function
   | Filespec a -> fun b -> compare_spec a (spec_of_cell b)
   | List a -> fun b -> compare_list a (list_of_cell b)
   | Num a -> fun b -> compare_num a (num_of_cell b)
+  | Pair (a1,a2) -> fun b -> compare_pair (a1,a2) (pair_of_cell b)
   | Str a -> fun b -> compare a (string_of_cell b)
   | Tuple a -> fun b -> compare_tuple a (tuple_of_cell b)
   | _ -> raise Uncomparable_type
@@ -348,6 +365,12 @@ and compare_list a b =
       match compare_cell x y with
           0 -> compare_list xs ys
         | x -> x
+
+(* compare two pairs *)
+and compare_pair (a1,a2) (b1,b2) =
+  match compare_cell a1 b1 with
+      0 -> compare_cell a2 b2
+    | x -> x
 
 (* compare two tuples *)
 and compare_tuple a b =
